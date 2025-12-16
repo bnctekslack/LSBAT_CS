@@ -160,9 +160,11 @@ def compute_k_metrics(df: pd.DataFrame) -> Dict[str, Dict[str, object]]:
         if data.size == 0:
             continue
 
+        print(f"[Step1] Computing K metrics for '{name}' ({len(data)} samples)...")
         K_range = range(9, 15) ################## K ####################
         dbi_scores, chi_scores = [], []
         for k in K_range:
+            print(f"[Step1]   - evaluating k={k}...")
             kmeans = KMeansConstrained(
                 n_clusters=k,
                 size_min=int(data.shape[0] / k * 0.8),
@@ -177,7 +179,7 @@ def compute_k_metrics(df: pd.DataFrame) -> Dict[str, Dict[str, object]]:
         chi_norm = _normalize_scores(chi_scores, "chi")
         combined_score = 0.5 * dbi_norm + 0.5 * chi_norm
         optimal_k_final = K_range[int(np.argmax(combined_score))]
-        print(f"[{name}] Optimal K (Combined): {optimal_k_final}")
+        print(f"[Step1] [{name}] Optimal K (Combined): {optimal_k_final}")
         results[name] = {
             "k_values": list(K_range),
             "dbi_scores": dbi_scores,
@@ -271,21 +273,21 @@ def run_step1(
     # ========== 가중치 적용 부분 ==========
     if use_equal_weights:
         # 균등 가중치 (기존 방식)
-        print("⚖️  균등 가중치 사용 (모든 항목 1.0)")
+        print("[Step1] 균등 가중치 사용 (모든 항목 1.0)")
         weights_to_use = {col: 1.0 for col in std_cols_use}
     else:
         # 가중치 적용
         if weights is None:
             weights_to_use = DEFAULT_WEIGHTS
-            print("🎯 권장 가중치 적용:")
+            print("[Step1] 가중치 적용:")
         else:
             weights_to_use = weights
-            print("🎯 사용자 정의 가중치 적용:")
+            print("[Step1] 사용자 정의 가중치 적용:")
         
         # 가중치 출력
         for col in std_cols_use:
             w = weights_to_use.get(col, 1.0)
-            print(f"   {col:25s}: {w:.1f}")
+            print(f"[Step1]    {col:25s}: {w:.1f}")
     
     # 가중치 적용 순위 합산
     df_rank["total_rank"] = sum(
@@ -297,8 +299,8 @@ def run_step1(
     # 최고 / 최악 클러스터 선정
     best_cluster = int(df_rank.loc[df_rank["total_rank"].idxmin(), "cluster"]) if len(df_rank) else None
     worst_cluster = int(df_rank.loc[df_rank["total_rank"].idxmax(), "cluster"]) if len(df_rank) else None
-    print(f"🌟 가장 안정적인 클러스터: {best_cluster}")
-    print(f"⚠️ 가장 변동성이 큰 클러스터: {worst_cluster}")
+    print(f"[Step1] 가장 안정적인 클러스터: {best_cluster}")
+    print(f"[Step1] 가장 변동성이 큰 클러스터: {worst_cluster}")
     
     # 가중치 정보 추가 저장
     df_weights = pd.DataFrame([
@@ -315,7 +317,7 @@ def run_step1(
         except PermissionError:
             ts = pd.Timestamp.now().strftime("%Y%m%d_%H%M%S")
             cs1_path = os.path.join(output_dir, f"Step1_Results_{ts}.xlsx")
-            print(f"[WARN] {base_path} 파일을 덮어쓸 수 없어 새 파일로 저장합니다: {cs1_path}")
+            print(f"[Step1][WARN] {base_path} 파일을 덮어쓸 수 없어 새 파일로 저장합니다: {cs1_path}")
 
     with pd.ExcelWriter(cs1_path, engine="openpyxl") as writer:
         df_out.to_excel(writer, sheet_name="Original_Data", index=False)
@@ -331,7 +333,7 @@ def run_step1(
         df_weights.to_excel(writer, sheet_name="Applied_Weights", index=False)  # 새 시트
         _add_k_selection_sheet(writer.book, k_results)
     
-    print("✅ 저장 완료:", cs1_path)
+    print(f"[Step1] 저장 완료: {cs1_path}")
     return cs1_path, best_cluster, worst_cluster
 
 

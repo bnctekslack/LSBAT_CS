@@ -1,50 +1,87 @@
-📁 결과 저장 폴더 생성 완료: Results
-[Initial ACIR Result] 이상치 0개 / 전체 1040개 (0.00%) | 기준: [10.400 ~ 12.400]
-[100% charge ACIR Result] 이상치 24개 / 전체 1040개 (2.31%) | 기준: [9.944 ~ 11.399]
-[0% charge ACIR Result] 이상치 0개 / 전체 1040개 (0.00%) | 기준: [9.970 ~ 12.010]
-[50% charge ACIR Result] 이상치 0개 / 전체 1040개 (0.00%) | 기준: [9.755 ~ 11.615]
-[Weight Result] 이상치 0개 / 전체 1040개 (0.00%) | 기준: [70.000 ~ 71.200]
-[Height Result] 이상치 2개 / 전체 1040개 (0.19%) | 기준: [70.230 ~ 70.590]
-[Width Result] 이상치 31개 / 전체 1032개 (3.00%) | 기준: [21.150 ~ 21.270]
-[Capacity Result] 이상치 0개 / 전체 1040개 (0.00%) | 기준: [4.780 ~ 5.200]
-[Initial Voltage Result] 이상치 0개 / 전체 1040개 (0.00%) | 기준: [3.440 ~ 3.470]
-[100% charge Voltage Result] 이상치 43개 / 전체 1040개 (4.13%) | 기준: [4.172 ~ 4.184]
-[0% charge Voltage Result] 이상치 12개 / 전체 1040개 (1.15%) | 기준: [2.869 ~ 3.025]
-[50% charge Voltage Result] 이상치 31개 / 전체 1040개 (2.98%) | 기준: [3.585 ~ 3.590]
-  ⚠️  BS-LSBAT-S240629-0030: 1개 항목 누락 → Outliers로 이동
-  ⚠️  BS-LSBAT-S240629-0034: 1개 항목 누락 → Outliers로 이동
-  ⚠️  BS-LSBAT-S240629-0075: 1개 항목 누락 → Outliers로 이동
-  ⚠️  BS-LSBAT-S240629-0076: 1개 항목 누락 → Outliers로 이동
-  ⚠️  BS-LSBAT-S240629-0079: 1개 항목 누락 → Outliers로 이동
-  ⚠️  BS-LSBAT-S240629-0080: 1개 항목 누락 → Outliers로 이동
-  ⚠️  BS-LSBAT-S240629-0083: 1개 항목 누락 → Outliers로 이동
-  ⚠️  BS-LSBAT-S240629-0085: 1개 항목 누락 → Outliers로 이동
+[LotScreen] Loading source data...
+[LotScreen] Lot identifier column: Unnamed: 0
+[LotScreen] Processing metric 'Initial ACIR' (Initial ACIR(mΩ))...
+[LotScreen]   → Initial ACIR(mΩ): Six Sigma % = 14.9414% (limit 15.00%) => PASS    
+[LotScreen] Processing metric '100% charge ACIR' (100% ACIR(mΩ))...
+[LotScreen]   → 100% ACIR(mΩ): Six Sigma % = 12.9791% (limit 15.00%) => PASS       
+[LotScreen] Processing metric '0% charge ACIR' (0% ACIR(mΩ))...
+[LotScreen]   → 0% ACIR(mΩ): Six Sigma % = 12.9913% (limit 15.00%) => PASS
+[LotScreen] Processing metric '50% charge ACIR' (50% ACIR(mΩ))...
+[LotScreen]   → 50% ACIR(mΩ): Six Sigma % = 12.8650% (limit 15.00%) => PASS        
+[LotScreen] Processing metric 'Weight' (Weight(g))...
+[LotScreen]   → Weight(g): Six Sigma % = 1.4219% (limit 2.00%) => PASS
+[LotScreen] Processing metric 'Height' (Height(mm))...
+[LotScreen] Processing metric 'Width' (Width(mm))...
+[LotScreen] Processing metric 'Capacity' (Capacity(Ah))...
+[LotScreen]   → Capacity(Ah): Six Sigma % = 2.6831% (limit 5.00%) => PASS
+[LotScreen] Processing metric 'Initial Voltage' (Initial Voltage(V))...
+[LotScreen]   → Initial Voltage(V): Six Sigma % = 0.3033% (limit 1.00%) => PASS    
+[LotScreen] Processing metric '100% charge Voltage' (100% Voltage(V))...
+[LotScreen] Processing metric '0% charge Voltage' (0% Voltage(V))...
+[LotScreen] Processing metric '50% charge Voltage' (50% Voltage(V))...
+[LotScreen] Writing Excel output...
+[LotScreen] Result File: Results\LotScreening.xlsx
+[LotScreen] Metrics Checked: 7 | Failed Metrics: 0
+[Step0] 결과 저장 폴더 생성 완료: Results
+[Step0] [Initial ACIR] 이상치 0개 / 전체 1040개 (0.00%) | 기준: [10.400 ~ 12.400]
+[Step0] [100% charge ACIR] 이상치 24개 / 전체 1040개 (2.31%) | 기준: [9.944 ~ 11.399]
+[Step0] [0% charge ACIR] 이상치 0개 / 전체 1040개 (0.00%) | 기준: [9.970 ~ 12.010]
+[Step0] [50% charge ACIR] 이상치 0개 / 전체 1040개 (0.00%) | 기준: [9.755 ~ 11.615]
+[Step0] [Weight] 이상치 0개 / 전체 1040개 (0.00%) | 기준: [70.000 ~ 71.200]
+[Step0] [Height] 이상치 2개 / 전체 1040개 (0.19%) | 기준: [70.230 ~ 70.590]
+[Step0] [Width] 이상치 31개 / 전체 1032개 (3.00%) | 기준: [21.150 ~ 21.270]
+[Step0] [Capacity] 이상치 0개 / 전체 1040개 (0.00%) | 기준: [4.780 ~ 5.200]
+[Step0] [Initial Voltage] 이상치 0개 / 전체 1040개 (0.00%) | 기준: [3.440 ~ 3.470]
+[Step0] [100% charge Voltage] 이상치 43개 / 전체 1040개 (4.13%) | 기준: [4.172 ~ 4.184]
+[Step0] [0% charge Voltage] 이상치 12개 / 전체 1040개 (1.15%) | 기준: [2.869 ~ 3.025]
+[Step0] [50% charge Voltage] 이상치 31개 / 전체 1040개 (2.98%) | 기준: [3.585 ~ 3.590]
+[Step0]    BS-LSBAT-S240629-0030: 1개 항목 누락 → Outliers로 이동
+[Step0]    BS-LSBAT-S240629-0034: 1개 항목 누락 → Outliers로 이동
+[Step0]    BS-LSBAT-S240629-0075: 1개 항목 누락 → Outliers로 이동
+[Step0]    BS-LSBAT-S240629-0076: 1개 항목 누락 → Outliers로 이동
+[Step0]    BS-LSBAT-S240629-0079: 1개 항목 누락 → Outliers로 이동
+[Step0]    BS-LSBAT-S240629-0080: 1개 항목 누락 → Outliers로 이동
+[Step0]    BS-LSBAT-S240629-0083: 1개 항목 누락 → Outliers로 이동
+[Step0]    BS-LSBAT-S240629-0085: 1개 항목 누락 → Outliers로 이동
 
-📝 Used에 사용 표시된 Lot를 Outliers로 이동 중...
-초기 Lot 개수: 1040
-이상치 제거 개수: 247
-측정값 누락 Lot 개수: 8
-Used 표시 Lot 개수: 145
-최종 남아있는 Lot 개수: 1040 (Outliers: 247, Non_Outliers: 793)      
+[Step0] Used에 사용 표시된 Lot를 Outliers로 이동 중...
+[Step0] 초기 Lot 개수: 1040
+[Step0] 이상치 제거 개수: 247
+[Step0] 측정값 누락 Lot 개수: 8
+[Step0] Used 표시 Lot 개수: 145
+[Step0] 최종 남아있는 Lot 개수: 1040 (Outliers: 247, Non_Outliers: 793)
 
-✅ 저장 완료: Results\Step0_Results.xlsx
-📊 Summary 시트에서 항목별 이상치 비율과 IQR 확인 가능.
-⚠️  측정값 누락된 Lot: 8개 → Outliers_List로 분류됨
-[All item] Optimal K (Combined): 9
-🎯 권장 가중치 적용:
-   Capacity(Ah)             : 3.0
-   Weight(g)                : 1.5
-   Height(mm)               : 0.5
-   Width(mm)                : 0.5
-   Initial Voltage(V)       : 3.0
-   100% Voltage(V)          : 1.0
-   0% Voltage(V)            : 1.0
-   50% Voltage(V)           : 1.0
-   Initial ACIR(mΩ)         : 2.5
-   100% ACIR(mΩ)            : 2.0
-   0% ACIR(mΩ)              : 2.0
-   50% ACIR(mΩ)             : 2.0
-🌟 가장 안정적인 클러스터: 4
-⚠️ 가장 변동성이 큰 클러스터: 2
-✅ 저장 완료: Results\Step1_Results.xlsx
-✅ 저장 완료: Results\Step2_Results.xlsx
+[Step0] 저장 완료: Results\Step0_Results.xlsx
+[Step0] Summary 시트에서 항목별 이상치 비율과 IQR 확인 가능.
+[Step0] 측정값 누락된 Lot: 8개 → Outliers_List로 분류됨
+[Step1] Computing K metrics for 'All item' (793 samples)...
+[Step1]   - evaluating k=9...
+[Step1]   - evaluating k=10...
+[Step1]   - evaluating k=11...
+[Step1]   - evaluating k=12...
+[Step1]   - evaluating k=13...
+[Step1]   - evaluating k=14...
+[Step1] [All item] Optimal K (Combined): 9
+[Step1] 가중치 적용:
+[Step1]    Capacity(Ah)             : 3.0
+[Step1]    Weight(g)                : 1.5
+[Step1]    Height(mm)               : 0.5
+[Step1]    Width(mm)                : 0.5
+[Step1]    Initial Voltage(V)       : 3.0
+[Step1]    100% Voltage(V)          : 1.0
+[Step1]    0% Voltage(V)            : 1.0
+[Step1]    50% Voltage(V)           : 1.0
+[Step1]    Initial ACIR(mΩ)         : 2.5
+[Step1]    100% ACIR(mΩ)            : 2.0
+[Step1]    0% ACIR(mΩ)              : 2.0
+[Step1]    50% ACIR(mΩ)             : 2.0
+[Step1] 가장 안정적인 클러스터: 4
+[Step1] 가장 변동성이 큰 클러스터: 2
+[Step1] 저장 완료: Results\Step1_Results.xlsx
+[Step2] Loading 'Results\Step1_Results.xlsx' sheet 'Cluster4'...
+[Step2] Loaded 88 rows for analysis columns: ['Initial ACIR(mΩ)', 'Capacity(Ah)']
+[Step2] Loading worst cluster data from sheet 'Cluster2'...
+[Step2] Calculating percentile ranges and membership scores...
+[Step2] Selecting top 72 cells based on FIS results...
+[Step2] Selected 72 cells for Best_72 sheets.
+[Step2] 저장 완료: Results\Step2_Results.xlsx

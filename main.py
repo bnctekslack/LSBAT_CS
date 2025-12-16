@@ -1,8 +1,15 @@
+from LotScreening import run_lot_screen
 from CellScreeningStep0 import run_step0
 from CellScreeningStep1 import run_step1
 from CellScreeningStep2 import run_step2
 
 def main():
+    ############################### LOT Screen ##################################
+    lot_screen_path, lot_pass = run_lot_screen()
+    if not lot_pass:
+        print("[Main] Lot screen failed. Check LotScreening.xlsx before proceeding.")
+        return
+
     ############################### STEP0 ##################################
     cs0_path = run_step0()
 

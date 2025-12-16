@@ -1,4 +1,5 @@
 import os
+import re
 from io import BytesIO
 
 import matplotlib.pyplot as plt
@@ -12,18 +13,18 @@ from openpyxl.drawing.image import Image as XLImage
 #- 무게: 70.5g ± 1.7%  → (69.3 ~ 71.7 g)
 #- 초기 ACIR: 11.4mΩ ± 8.8%  → (10.4 ~ 12.4 mΩ)
 ANALYSIS_ITEMS = [
-    ("Unnamed: 23", 6, 1045, "Initial ACIR Result", "Initial ACIR(mΩ)", (10.4, 12.4), 0.1),
-    ("Unnamed: 26", 6, 1045, "100% charge ACIR Result", "100% ACIR(mΩ)", None, 0.1),
-    ("Unnamed: 29", 6, 1045, "0% charge ACIR Result", "0% ACIR(mΩ)", None, 0.1),
-    ("Unnamed: 33", 6, 1045, "50% charge ACIR Result", "50% ACIR(mΩ)", None, 0.1),
-    ("Unnamed: 7", 6, 1045, "Weight Result", "Weight(g)", (70.0, 71.2), 0.1),
-    ("Unnamed: 12", 6, 1045, "Height Result", "Height(mm)", None, 0.1),
-    ("Unnamed: 14", 6, 1045, "Width Result", "Width(mm)", None, 0.1),
-    ("Unnamed: 30", 6, 1045, "Capacity Result", "Capacity(Ah)", (4.78, 5.20), 0.01),
-    ("Unnamed: 22", 6, 1045, "Initial Voltage Result", "Initial Voltage(V)", (3.44, 3.47), 0.001),
-    ("Unnamed: 25", 6, 1045, "100% charge Voltage Result", "100% Voltage(V)"),
-    ("Unnamed: 28", 6, 1045, "0% charge Voltage Result", "0% Voltage(V)"),
-    ("Unnamed: 32", 6, 1045, "50% charge Voltage Result", "50% Voltage(V)"),
+    ("Unnamed: 23", 6, 1045, "Initial ACIR", "Initial ACIR(mΩ)", (10.4, 12.4), 0.1),
+    ("Unnamed: 26", 6, 1045, "100% charge ACIR", "100% ACIR(mΩ)", None, 0.1),
+    ("Unnamed: 29", 6, 1045, "0% charge ACIR", "0% ACIR(mΩ)", None, 0.1),
+    ("Unnamed: 33", 6, 1045, "50% charge ACIR", "50% ACIR(mΩ)", None, 0.1),
+    ("Unnamed: 7", 6, 1045, "Weight", "Weight(g)", (70.0, 71.2), 0.1),
+    ("Unnamed: 12", 6, 1045, "Height", "Height(mm)", None, 0.1),
+    ("Unnamed: 14", 6, 1045, "Width", "Width(mm)", None, 0.1),
+    ("Unnamed: 30", 6, 1045, "Capacity", "Capacity(Ah)", (4.78, 5.20), 0.01),
+    ("Unnamed: 22", 6, 1045, "Initial Voltage", "Initial Voltage(V)", (3.44, 3.47), 0.001),
+    ("Unnamed: 25", 6, 1045, "100% charge Voltage", "100% Voltage(V)"),
+    ("Unnamed: 28", 6, 1045, "0% charge Voltage", "0% Voltage(V)"),
+    ("Unnamed: 32", 6, 1045, "50% charge Voltage", "50% Voltage(V)"),
     ("Unnamed: 34", 6, 1045, "Used", "Used"),
 ]
 
@@ -44,6 +45,27 @@ DEFAULT_IQR_FACTOR = 2.5 #1.5 ~ 3.0
 def detect_lot_column(df: pd.DataFrame) -> str:
     possible_cols = ["Lot Number", "LOT", "Unnamed: 0"]
     return next((c for c in possible_cols if c in df.columns), df.columns[0])
+
+
+def _resolve_column_name(columns: pd.Index, *candidates: str) -> str | None:
+    normalized_map = {str(col).strip().lower(): col for col in columns}
+    for cand in candidates:
+        if cand is None:
+            continue
+        cand_str = str(cand).strip()
+        if not cand_str:
+            continue
+        if cand_str in columns:
+            return cand_str
+        cand_norm = cand_str.lower()
+        if cand_norm in normalized_map:
+            return normalized_map[cand_norm]
+        match = re.match(r"unnamed:\s*(\d+)", cand_norm)
+        if match:
+            idx = int(match.group(1))
+            if 0 <= idx < len(columns):
+                return columns[idx]
+    return None
 
 
 def get_outliers(series: pd.Series, manual_range=None, factor: float = 1.5):
@@ -71,7 +93,7 @@ def run_step0(
     iqr_factor: float = DEFAULT_IQR_FACTOR,
 ) -> str:
     os.makedirs(output_dir, exist_ok=True)
-    print(f"📁 결과 저장 폴더 생성 완료: {output_dir}")
+    print(f"[Step0] 결과 저장 폴더 생성 완료: {output_dir}")
 
     df = pd.read_excel(input_path, sheet_name=sheet_name)
     lot_col = detect_lot_column(df)
@@ -84,8 +106,11 @@ def run_step0(
         if len(item) >= 5 and str(item[4]).strip().lower() == "used"
     ]
     for col in used_from_items:
-        if col in df.columns:
-            remark_columns.add(col)
+        resolved = _resolve_column_name(df.columns, col)
+        if resolved:
+            remark_columns.add(resolved)
+        else:
+            print(f"[Step0][WARN] Used column '{col}' not found in source data.")
     remark_columns = list(remark_columns)
 
     outlier_dict_total = {}
@@ -116,7 +141,7 @@ def run_step0(
     # Used가 ANALYSIS_ITEMS에 들어 있더라도 분석 대상에서 제외
     analysis_items = [
         item for item in ANALYSIS_ITEMS
-        if len(item) >= 5 and item[4] != "Used" and item[0] not in remark_columns
+        if len(item) >= 5 and item[4] != "Used"
     ]
     
     for item in analysis_items:
@@ -124,8 +149,13 @@ def run_step0(
         ylim = rest[0] if len(rest) > 0 else None
         ystep = rest[1] if len(rest) > 1 else 0.1
 
+        resolved_col = _resolve_column_name(df.columns, col, save_col, title)
+        if resolved_col is None:
+            print(f"[Step0][WARN] Column candidates {[col, save_col, title]} not found. Skipping {title}.")
+            continue
+
         # 원본 데이터 (변환 전)
-        raw_series = df.loc[start - 2 : end - 2, col]
+        raw_series = df.loc[start - 2 : end - 2, resolved_col]
         
         # 숫자로 변환
         data = pd.to_numeric(raw_series, errors='coerce')
@@ -150,7 +180,7 @@ def run_step0(
 
         outlier_ratio = len(outliers) / len(data) * 100
         print(
-            f"[{title}] 이상치 {len(outliers)}개 / 전체 {len(data)}개 "
+            f"[Step0] [{title}] 이상치 {len(outliers)}개 / 전체 {len(data)}개 "
             f"({outlier_ratio:.2f}%) | 기준: [{lower:.3f} ~ {upper:.3f}]"
         )
 
@@ -198,7 +228,7 @@ def run_step0(
     # 측정값이 누락된 Lot을 Outliers로 이동
     #print("\n📊 측정값 누락 처리 중...")
     for lot, missing_cols in missing_data_dict.items():
-        print(f"  ⚠️  {lot}: {len(missing_cols)}개 항목 누락 → Outliers로 이동")
+        print(f"[Step0]    {lot}: {len(missing_cols)}개 항목 누락 → Outliers로 이동")
         outlier_dict_total.setdefault(lot, {})
 
         # Non_Outliers에 있던 데이터를 Outliers로 이동 후 제거
@@ -211,7 +241,7 @@ def run_step0(
 
     # Used가 있는 Lot을 Outliers로 이동시키고 Used 컬럼으로 표시
     if remark_map:
-        print("\n📝 Used에 사용 표시된 Lot를 Outliers로 이동 중...")
+        print("\n[Step0] Used에 사용 표시된 Lot를 Outliers로 이동 중...")
         for lot, remark_text in remark_map.items():
             outlier_dict_total.setdefault(lot, {})
             if lot in non_outlier_dict_total:
@@ -252,11 +282,11 @@ def run_step0(
     final_non_outlier_count = len(non_outlier_dict_total)
     final_outlier_count = len(outlier_dict_total)
     final_total_lot_count = final_outlier_count + final_non_outlier_count
-    print(f"초기 Lot 개수: {initial_lot_count}")
-    print(f"이상치 제거 개수: {final_outlier_count}")
-    print(f"측정값 누락 Lot 개수: {missing_lot_count}")
-    print(f"Used 표시 Lot 개수: {used_lot_count}")
-    print(f"최종 남아있는 Lot 개수: {final_total_lot_count} (Outliers: {final_outlier_count}, Non_Outliers: {final_non_outlier_count})")
+    print(f"[Step0] 초기 Lot 개수: {initial_lot_count}")
+    print(f"[Step0] 이상치 제거 개수: {final_outlier_count}")
+    print(f"[Step0] 측정값 누락 Lot 개수: {missing_lot_count}")
+    print(f"[Step0] Used 표시 Lot 개수: {used_lot_count}")
+    print(f"[Step0] 최종 남아있는 Lot 개수: {final_total_lot_count} (Outliers: {final_outlier_count}, Non_Outliers: {final_non_outlier_count})")
 
     output_file = os.path.join(output_dir, "Step0_Results.xlsx")
     with pd.ExcelWriter(output_file, engine="openpyxl") as writer:
@@ -273,9 +303,9 @@ def run_step0(
             ws.add_image(img, f"A{row}")
             row += 25
 
-    print("\n✅ 저장 완료:", output_file)
-    print("📊 Summary 시트에서 항목별 이상치 비율과 IQR 확인 가능.")
-    print(f"⚠️  측정값 누락된 Lot: {len(missing_data_dict)}개 → Outliers_List로 분류됨")
+    print(f"\n[Step0] 저장 완료: {output_file}")
+    print("[Step0] Summary 시트에서 항목별 이상치 비율과 IQR 확인 가능.")
+    print(f"[Step0] 측정값 누락된 Lot: {len(missing_data_dict)}개 → Outliers_List로 분류됨")
     return output_file
 
 

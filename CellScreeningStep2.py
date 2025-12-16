@@ -106,22 +106,26 @@ def run_step2(
     cluster_index = cluster_index if cluster_index is not None else DEFAULT_CLUSTER_INDEX
     sheet_name = f"Cluster{cluster_index}"
 
+    print(f"[Step2] Loading '{cs1_file}' sheet '{sheet_name}'...")
     df = pd.read_excel(cs1_file, sheet_name=sheet_name)
     df[cols] = df[cols].apply(pd.to_numeric, errors="coerce")
+    print(f"[Step2] Loaded {len(df)} rows for analysis columns: {cols}")
 
     worst_cells_df = None
     if worst_cluster is not None:
         worst_sheet = f"Cluster{worst_cluster}"
+        print(f"[Step2] Loading worst cluster data from sheet '{worst_sheet}'...")
         try:
             df_worst = pd.read_excel(cs1_file, sheet_name=worst_sheet)
             if "Lot Number" in df_worst.columns:
                 # Include full feature columns for worst cluster, sorted by lot number for readability
                 worst_cells_df = df_worst.sort_values(by="Lot Number").reset_index(drop=True)
             else:
-                print(f"[WARN] '{worst_sheet}' does not contain 'Lot Number' column. Skipping Worst Cells sheet.")
+                print(f"[Step2][WARN] '{worst_sheet}' does not contain 'Lot Number' column. Skipping Worst Cells sheet.")
         except Exception as exc:
-            print(f"[WARN] Failed to load sheet {worst_sheet} for Worst Cells: {exc}")
+            print(f"[Step2][WARN] Failed to load sheet {worst_sheet} for Worst Cells: {exc}")
 
+    print("[Step2] Calculating percentile ranges and membership scores...")
     ranges = _calculate_ranges(df, cols)
     df_fis = df[["Lot Number"] + cols].copy()
     for col in cols:
@@ -160,9 +164,11 @@ def run_step2(
             ignore_index=True,
         )
 
+    print("[Step2] Selecting top 72 cells based on FIS results...")
     df_selected_72 = _select_top_72(df_fis.copy())
     selected_lot_nums = df_selected_72["Lot Number"].unique().tolist()
     df_selected_raw = df[df["Lot Number"].isin(selected_lot_nums)].copy()
+    print(f"[Step2] Selected {len(df_selected_72)} cells for Best_72 sheets.")
 
     best_suffix = f"({cluster_index})" if cluster_index is not None else ""
     worst_suffix = f"({worst_cluster})" if worst_cluster is not None else ""
@@ -180,7 +186,7 @@ def run_step2(
         if worst_cells_df is not None:
             worst_cells_df.to_excel(writer, sheet_name=worst_sheet_name, index=False)
 
-    print("✅ 저장 완료:", output_path)
+    print(f"[Step2] 저장 완료: {output_path}")
     return output_path
 
 

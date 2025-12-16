@@ -1,3 +1,14 @@
+Lot. NASA JSC-20793 Rev.D 문서의 Lot Acceptance Testing을 참조
+    1. OCV, 질량, 용량 등에서 ±3σ 밖에 있는 셀(3-sigma outlier) 을 로트에서 제외
+    2. 이상치를 제거한 “남은 셀들”로 평균(μ)과 표준편차(σ)를 다시 계산
+    3. 그 결과 분포의 ±3σ 범위가 평균 대비 너무 크면(=흩어짐이 크면) 로트 자체를 불합격
+        - 기준값(%) : 6σ/μ * 100%
+        - 허용치
+            OCV  1%
+            무게  2%
+            용량  5%
+            ACIR 15% (DCIR 대체) 
+
 Step0. 배터리 셀 특성 데이터의 이상치(outlier)를 탐지하고 분석
     1. Used 항목 추가 : 기존 시험에 사용되었던 배터리 셀을 제고하고 다음단계 진행
     2. ANALYSIS_ITEMS : ("Unnamed: 23", 6, 1045, "Initial ACIR Result", "Initial ACIR(mΩ)", (10.4, 12.4), 0.1)
