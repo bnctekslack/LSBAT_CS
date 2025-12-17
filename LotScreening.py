@@ -13,13 +13,18 @@ from CellScreeningStep0 import (
 
 
 LOT_SCREEN_LIMITS = {
-    "Initial Voltage(V)": 1.0,
-    "Weight(g)": 2.0,
-    "Capacity(Ah)": 5.0,
     "Initial ACIR(mΩ)": 15.0,
     "100% ACIR(mΩ)": 15.0,
     "0% ACIR(mΩ)": 15.0,
     "50% ACIR(mΩ)": 15.0,
+    "Weight(g)": 2.0,
+    "Height(mm)": 2.0,
+    "Width(mm)": 2.0,
+    "Capacity(Ah)": 3.0,
+    "Initial Voltage(V)": 0.5,
+    "100% Voltage(V)" : 0.5,
+    "0% Voltage(V)" : 4.0,  # Six Sigma % = 3.8993% 
+    "50% Voltage(V)" : 0.3, # Six Sigma % = 0.2571% 
 }
 
 DEFAULT_OUTPUT_DIR = "Results"

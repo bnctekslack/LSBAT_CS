@@ -1,8 +1,11 @@
 import os
+from io import BytesIO
 from typing import Dict, List, Optional
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+from openpyxl.drawing.image import Image as XLImage
 
 
 DEFAULT_OUTPUT_DIR = "Results"
@@ -185,6 +188,80 @@ def run_step2(
         df_selected_raw.to_excel(writer, sheet_name=best_raw_sheet_name, index=False)
         if worst_cells_df is not None:
             worst_cells_df.to_excel(writer, sheet_name=worst_sheet_name, index=False)
+
+        fis_class_counts = df_fis["FIS_Class"].value_counts().reindex(["Low", "Med", "High"], fill_value=0)
+        fig_class, ax_class = plt.subplots(figsize=(5, 4))
+        ax_class.pie(
+            fis_class_counts,
+            labels=fis_class_counts.index,
+            autopct="%1.1f%%",
+            colors=["#4daf4a", "#ff7f00", "#377eb8"],
+            startangle=90,
+        )
+        ax_class.set_title("FIS Class Distribution")
+        class_img = BytesIO()
+        plt.savefig(class_img, format="png", dpi=150)
+        plt.close(fig_class)
+        class_img.seek(0)
+        class_sheet = writer.book.create_sheet("FIS_Class_Distribution")
+        class_image = XLImage(class_img)
+        class_image.width, class_image.height = 480, 360
+        class_sheet.add_image(class_image, "A1")
+
+        fig_ranges, axes_ranges = plt.subplots(len(cols), 1, figsize=(6, 3 * len(cols)))
+        axes_ranges = np.array(axes_ranges).reshape(-1)
+        for ax, col in zip(axes_ranges, cols):
+            ax.plot(df[col].values, label=col, color="#1f77b4")
+            ax.axhspan(ranges[col]["low"], ranges[col]["mid1"], color="#4daf4a", alpha=0.1, label="Low Range")
+            ax.axhspan(ranges[col]["mid1"], ranges[col]["mid2"], color="#ff7f00", alpha=0.1, label="Mid Range")
+            ax.axhspan(ranges[col]["mid2"], ranges[col]["high"], color="#377eb8", alpha=0.1, label="High Range")
+            ax.set_title(f"{col} Distribution with Ranges")
+            ax.set_ylabel(col)
+            ax.legend(loc="best", fontsize=8)
+        plt.tight_layout()
+        range_img = BytesIO()
+        plt.savefig(range_img, format="png", dpi=150)
+        plt.close(fig_ranges)
+        range_img.seek(0)
+        ranges_sheet = writer.book.create_sheet("Ranges_Chart")
+        range_image = XLImage(range_img)
+        range_image.width, range_image.height = 640, 320 * len(cols)
+        ranges_sheet.add_image(range_image, "A1")
+
+        if len(cols) >= 2:
+            fig_scatter, ax_scatter = plt.subplots(figsize=(6, 5))
+            class_color_map = {"Low": "#4daf4a", "Med": "#ff7f00", "High": "#377eb8"}
+            colors = df_fis["FIS_Class"].map(class_color_map)
+            ax_scatter.scatter(
+                df[cols[0]],
+                df[cols[1]],
+                c=colors,
+                alpha=0.6,
+                label="All Lots",
+            )
+            if not df_selected_raw.empty:
+                ax_scatter.scatter(
+                    df_selected_raw[cols[0]],
+                    df_selected_raw[cols[1]],
+                    color="red",
+                    label="Best 72",
+                    edgecolors="white",
+                    s=40,
+                )
+            ax_scatter.set_xlabel(cols[0])
+            ax_scatter.set_ylabel(cols[1])
+            ax_scatter.set_title("Best 72 Highlight")
+            handles, labels_scatter = ax_scatter.get_legend_handles_labels()
+            ax_scatter.legend(handles, labels_scatter, loc="best")
+            plt.tight_layout()
+            scatter_img = BytesIO()
+            plt.savefig(scatter_img, format="png", dpi=150)
+            plt.close(fig_scatter)
+            scatter_img.seek(0)
+            scatter_sheet = writer.book.create_sheet("Best72_Scatter")
+            scatter_image = XLImage(scatter_img)
+            scatter_image.width, scatter_image.height = 640, 480
+            scatter_sheet.add_image(scatter_image, "A1")
 
     print(f"[Step2] 저장 완료: {output_path}")
     return output_path

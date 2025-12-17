@@ -8,6 +8,7 @@ import pandas as pd
 from openpyxl.drawing.image import Image as XLImage
 from sklearn.metrics import calinski_harabasz_score, davies_bouldin_score
 from sklearn.preprocessing import StandardScaler
+from sklearn.decomposition import PCA
 from k_means_constrained import KMeansConstrained
 
 
@@ -247,6 +248,10 @@ def run_step1(
     df_use = df[[id_col] + feature_cols].dropna().reset_index(drop=True)
     scaler = StandardScaler()
     X_scaled = scaler.fit_transform(df_use[feature_cols])
+    pca = PCA(n_components=2, random_state=42)
+    coords = pca.fit_transform(X_scaled) if X_scaled.shape[1] >= 2 else np.column_stack(
+        [X_scaled[:, 0], np.zeros_like(X_scaled[:, 0])]
+    )
 
     bkm = BalancedKMeans(n_clusters=k, random_state=42)
     labels = bkm.fit_predict(X_scaled)
@@ -269,6 +274,15 @@ def run_step1(
     df_rank = df_cluster_std.copy()
     for col in std_cols_use:
         df_rank[col] = df_cluster_std[col].rank(method="min", ascending=True)
+
+    scatter_plot_df = pd.DataFrame(
+        {
+            "Lot Number": df_use[id_col],
+            "cluster": labels,
+            "PC1": coords[:, 0],
+            "PC2": coords[:, 1],
+        }
+    )
     
     # ========== 가중치 적용 부분 ==========
     if use_equal_weights:
@@ -331,6 +345,78 @@ def run_step1(
         df_cluster_std.to_excel(writer, sheet_name="Cluster_STD", index=False)
         df_rank.to_excel(writer, sheet_name="Cluster_STD_Rank", index=False)
         df_weights.to_excel(writer, sheet_name="Applied_Weights", index=False)  # 새 시트
+
+        x_min, x_max = scatter_plot_df["PC1"].min(), scatter_plot_df["PC1"].max()
+        y_min, y_max = scatter_plot_df["PC2"].min(), scatter_plot_df["PC2"].max()
+
+        fig, ax = plt.subplots(figsize=(8, 6))
+        clusters_sorted = sorted(scatter_plot_df["cluster"].unique())
+        cmap = plt.cm.get_cmap("tab10", len(clusters_sorted))
+        cluster_colors = {}
+        for idx, cluster_id in enumerate(clusters_sorted):
+            cluster_points = scatter_plot_df[scatter_plot_df["cluster"] == cluster_id]
+            color = cmap(idx)
+            cluster_colors[cluster_id] = color
+            ax.scatter(
+                cluster_points["PC1"],
+                cluster_points["PC2"],
+                color=color,
+                label=f"Cluster {cluster_id}",
+                s=25,
+                alpha=0.7,
+            )
+        ax.set_title("Cluster Distribution (PCA 2D)")
+        ax.set_xlabel("PC1")
+        ax.set_ylabel("PC2")
+        ax.set_xlim(x_min, x_max)
+        ax.set_ylim(y_min, y_max)
+        ax.legend(loc="best", fontsize=8)
+        plt.tight_layout()
+
+        scatter_img = BytesIO()
+        plt.savefig(scatter_img, format="png", dpi=150)
+        plt.close(fig)
+        scatter_img.seek(0)
+        scatter_sheet = writer.book.create_sheet("Cluster_Scatter")
+        scatter_image = XLImage(scatter_img)
+        scatter_image.width, scatter_image.height = 720, 480
+        scatter_sheet.add_image(scatter_image, "A1")
+
+        n_clusters = len(clusters_sorted)
+        if n_clusters > 0:
+            ncols = min(3, n_clusters)
+            nrows = int(np.ceil(n_clusters / ncols))
+            fig_multi, axes_multi = plt.subplots(nrows, ncols, figsize=(4.5 * ncols, 3.5 * nrows))
+            axes_multi = np.array(axes_multi).reshape(-1)
+            for ax in axes_multi[n_clusters:]:
+                ax.axis("off")
+            for ax, cluster_id in zip(axes_multi, clusters_sorted):
+                cluster_points = scatter_plot_df[scatter_plot_df["cluster"] == cluster_id]
+                ax.scatter(
+                    cluster_points["PC1"],
+                    cluster_points["PC2"],
+                    color=cluster_colors.get(cluster_id, "#1f77b4"),
+                    s=30,
+                    alpha=0.8,
+                )
+                ax.set_title(f"Cluster {cluster_id}")
+                ax.set_xlabel("PC1")
+                ax.set_ylabel("PC2")
+                ax.set_xlim(x_min, x_max)
+                ax.set_ylim(y_min, y_max)
+                ax.grid(True, linestyle="--", alpha=0.3)
+            plt.tight_layout()
+
+            cluster_img = BytesIO()
+            plt.savefig(cluster_img, format="png", dpi=150)
+            plt.close(fig_multi)
+            cluster_img.seek(0)
+
+            multi_sheet = writer.book.create_sheet("Cluster_Scatter_ByCluster")
+            multi_image = XLImage(cluster_img)
+            multi_image.width, multi_image.height = 720, 520
+            multi_sheet.add_image(multi_image, "A1")
+
         _add_k_selection_sheet(writer.book, k_results)
     
     print(f"[Step1] 저장 완료: {cs1_path}")
