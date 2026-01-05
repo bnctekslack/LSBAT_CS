@@ -36,7 +36,7 @@ DESIRED_ORDER = [
     "Used",
 ]
 
-DEFAULT_DATA_FILE = "RawData/SDI_21700_50S_특성데이터.xlsx"
+DEFAULT_DATA_FILE = "RawData/SDI_21700_50S_특성데이터(251219).xlsx"
 DEFAULT_SHEET_NAME = "Raw Data"
 DEFAULT_OUTPUT_DIR = "Results"
 DEFAULT_IQR_FACTOR = 2.5 #1.5 ~ 3.0

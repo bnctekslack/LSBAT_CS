@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from openpyxl.drawing.image import Image as XLImage
-from sklearn.metrics import calinski_harabasz_score, davies_bouldin_score
+from sklearn.metrics import adjusted_rand_score, calinski_harabasz_score, davies_bouldin_score
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
 from k_means_constrained import KMeansConstrained
@@ -45,8 +45,9 @@ STD_COLS = [
 ]
 
 DEFAULT_OUTPUT_DIR = "Results"
+MIN_CLUSTER_SIZE = 72
 
-# 권장 가중치 설정
+# 권장 가중치 설정 (0 ~ 5)
 DEFAULT_WEIGHTS = {
     # Tier 1: 성능/안전 직결
     "Capacity(Ah)": 3.0,
@@ -163,13 +164,19 @@ def compute_k_metrics(df: pd.DataFrame) -> Dict[str, Dict[str, object]]:
 
         print(f"[Step1] Computing K metrics for '{name}' ({len(data)} samples)...")
         K_range = range(9, 15) ################## K ####################
+        feasible_k = [k for k in K_range if k * MIN_CLUSTER_SIZE <= len(data)]
+        if not feasible_k:
+            raise ValueError(
+                f"데이터 수({len(data)})로는 클러스터 최소 크기 {MIN_CLUSTER_SIZE}을 만족하는 k를 찾을 수 없습니다."
+            )
         dbi_scores, chi_scores = [], []
-        for k in K_range:
+        for k in feasible_k:
             print(f"[Step1]   - evaluating k={k}...")
+            size_max = max(MIN_CLUSTER_SIZE, int(len(data) / k * 1.2))
             kmeans = KMeansConstrained(
                 n_clusters=k,
-                size_min=int(data.shape[0] / k * 0.8),
-                size_max=int(data.shape[0] / k * 1.2),
+                size_min=MIN_CLUSTER_SIZE,
+                size_max=size_max,
                 random_state=42,                #의미없는 시작값 0~100
             )
             labels = kmeans.fit_predict(data)
@@ -179,14 +186,14 @@ def compute_k_metrics(df: pd.DataFrame) -> Dict[str, Dict[str, object]]:
         dbi_norm = _normalize_scores(dbi_scores, "dbi")
         chi_norm = _normalize_scores(chi_scores, "chi")
         combined_score = 0.5 * dbi_norm + 0.5 * chi_norm
-        optimal_k_final = K_range[int(np.argmax(combined_score))]
+        optimal_k_final = feasible_k[int(np.argmax(combined_score))]
         print(f"[Step1] [{name}] Optimal K (Combined): {optimal_k_final}")
         results[name] = {
-            "k_values": list(K_range),
+            "k_values": list(feasible_k),
             "dbi_scores": dbi_scores,
             "chi_scores": chi_scores,
-            "optimal_k_dbi": K_range[int(np.argmin(dbi_scores))],
-            "optimal_k_chi": K_range[int(np.argmax(chi_scores))],
+            "optimal_k_dbi": feasible_k[int(np.argmin(dbi_scores))],
+            "optimal_k_chi": feasible_k[int(np.argmax(chi_scores))],
             "optimal_k_final": optimal_k_final,
         }
     return results
@@ -246,22 +253,62 @@ def run_step1(
     feature_cols = COLUMNS_TO_ANALYZE["All item"]
 
     df_use = df[[id_col] + feature_cols].dropna().reset_index(drop=True)
+
+    # ========== 가중치 적용 부분 (클러스터링 포함) ==========
+    if use_equal_weights:
+        # 균등 가중치 (기존 방식)
+        print("[Step1] 균등 가중치 사용 (모든 항목 1.0)")
+        weights_to_use = {col: 1.0 for col in feature_cols}
+    else:
+        # 가중치 적용
+        if weights is None:
+            weights_to_use = DEFAULT_WEIGHTS
+            print("[Step1] 가중치 적용:")
+        else:
+            weights_to_use = weights
+            print("[Step1] 사용자 정의 가중치 적용:")
+
+    # 가중치 출력
+    for col in feature_cols:
+        w = weights_to_use.get(col, 1.0)
+        print(f"[Step1]    {col:25s}: {w:.1f}")
+    # =====================================
+
     scaler = StandardScaler()
     X_scaled = scaler.fit_transform(df_use[feature_cols])
+    weights_vec = np.array([weights_to_use.get(col, 1.0) for col in feature_cols])
+    X_weighted = X_scaled * weights_vec
     pca = PCA(n_components=2, random_state=42)
-    coords = pca.fit_transform(X_scaled) if X_scaled.shape[1] >= 2 else np.column_stack(
-        [X_scaled[:, 0], np.zeros_like(X_scaled[:, 0])]
+    coords = pca.fit_transform(X_weighted) if X_weighted.shape[1] >= 2 else np.column_stack(
+        [X_weighted[:, 0], np.zeros_like(X_weighted[:, 0])]
     )
 
-    bkm = BalancedKMeans(n_clusters=k, random_state=42)
-    labels = bkm.fit_predict(X_scaled)
+    size_max = max(MIN_CLUSTER_SIZE, int(len(df_use) / k * 1.2))
+    kmeans_weighted = KMeansConstrained(
+        n_clusters=k,
+        size_min=MIN_CLUSTER_SIZE,
+        size_max=size_max,
+        random_state=42,
+    )
+    labels = kmeans_weighted.fit_predict(X_weighted)
+
+    kmeans_unweighted = KMeansConstrained(
+        n_clusters=k,
+        size_min=MIN_CLUSTER_SIZE,
+        size_max=size_max,
+        random_state=42,
+    )
+    labels_unweighted = kmeans_unweighted.fit_predict(X_scaled)
     df_use["cluster"] = labels
     df_out = df.merge(df_use[[id_col, "cluster"]], on=id_col, how="left")
 
-    df_scaled = df_use.copy()
-    df_scaled[feature_cols] = X_scaled
-    df_std = df_scaled.copy()
-    df_std["cluster"] = labels
+    df_scaled_unweighted = df_use.copy()
+    df_scaled_unweighted[feature_cols] = X_scaled
+    df_scaled_unweighted["cluster"] = labels_unweighted
+
+    df_scaled_weighted = df_use.copy()
+    df_scaled_weighted[feature_cols] = X_weighted
+    df_scaled_weighted["cluster"] = labels
 
     df_counts = df_use["cluster"].value_counts().sort_index().reset_index()
     df_counts.columns = ["cluster", "count"]
@@ -283,26 +330,7 @@ def run_step1(
             "PC2": coords[:, 1],
         }
     )
-    
-    # ========== 가중치 적용 부분 ==========
-    if use_equal_weights:
-        # 균등 가중치 (기존 방식)
-        print("[Step1] 균등 가중치 사용 (모든 항목 1.0)")
-        weights_to_use = {col: 1.0 for col in std_cols_use}
-    else:
-        # 가중치 적용
-        if weights is None:
-            weights_to_use = DEFAULT_WEIGHTS
-            print("[Step1] 가중치 적용:")
-        else:
-            weights_to_use = weights
-            print("[Step1] 사용자 정의 가중치 적용:")
-        
-        # 가중치 출력
-        for col in std_cols_use:
-            w = weights_to_use.get(col, 1.0)
-            print(f"[Step1]    {col:25s}: {w:.1f}")
-    
+
     # 가중치 적용 순위 합산
     df_rank["total_rank"] = sum(
         df_rank[col] * weights_to_use.get(col, 1.0)
@@ -321,6 +349,21 @@ def run_step1(
         {"항목": col, "가중치": weights_to_use.get(col, 1.0)}
         for col in std_cols_use
     ])
+
+    compare_ari = adjusted_rand_score(labels_unweighted, labels)
+    df_compare_summary = pd.DataFrame(
+        [
+            {"Metric": "Adjusted Rand Index", "Value": compare_ari},
+            {"Metric": "Weighted Clusters (k)", "Value": k},
+            {"Metric": "Unweighted Clusters (k)", "Value": k},
+        ]
+    )
+    df_compare_matrix = pd.crosstab(
+        labels_unweighted,
+        labels,
+        rownames=["Unweighted Cluster"],
+        colnames=["Weighted Cluster"],
+    )
     
     os.makedirs(output_dir, exist_ok=True)
     base_path = os.path.join(output_dir, "Step1_Results.xlsx")
@@ -335,7 +378,8 @@ def run_step1(
 
     with pd.ExcelWriter(cs1_path, engine="openpyxl") as writer:
         df_out.to_excel(writer, sheet_name="Original_Data", index=False)
-        df_std.to_excel(writer, sheet_name="Clustered_StandardScaler", index=False)
+        df_scaled_unweighted.to_excel(writer, sheet_name="Clustered_StandardScaler", index=False)
+        df_scaled_weighted.to_excel(writer, sheet_name="Clustered_Weighted", index=False)
         df_counts.to_excel(writer, sheet_name="Cluster_Counts", index=False)
         
         for c in sorted(df_out["cluster"].dropna().unique()):
@@ -345,6 +389,8 @@ def run_step1(
         df_cluster_std.to_excel(writer, sheet_name="Cluster_STD", index=False)
         df_rank.to_excel(writer, sheet_name="Cluster_STD_Rank", index=False)
         df_weights.to_excel(writer, sheet_name="Applied_Weights", index=False)  # 새 시트
+        df_compare_summary.to_excel(writer, sheet_name="Cluster_Compare_Summary", index=False)
+        df_compare_matrix.to_excel(writer, sheet_name="Cluster_Compare_Contingency")
 
         x_min, x_max = scatter_plot_df["PC1"].min(), scatter_plot_df["PC1"].max()
         y_min, y_max = scatter_plot_df["PC2"].min(), scatter_plot_df["PC2"].max()

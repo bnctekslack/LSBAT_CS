@@ -42,5 +42,5 @@ Step2. 엑셀 파일에서 특정 클러스터 데이터를 읽어와 퍼지 멤
     
 사용자 결정사항
     Step0의 이상치 판단 기준 : "Initial ACIR(mΩ)","Weight(g)", "Capacity(Ah)","Initial Voltage(V)"
-    Step1의 K 범위 : "9~15", 가중치 : "DEFAULT_WEIGHTS"
+    Step1의 K값은 MIN_CLUSTER_SIZE에 의해 결정됨, 가중치 : "DEFAULT_WEIGHTS"
     Step2의 분석에 사용할 항목들 : ANALYSIS_COLUMNS = ["Initial ACIR(mΩ)","Capacity(Ah)"]
