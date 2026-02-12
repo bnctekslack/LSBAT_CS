@@ -39,61 +39,7 @@ ITEM_SPECS 작성 방법:
 #     "lot_limit": 0.5,
 # }
 
-ITEM_SPECS: List[ItemSpec] = [
-    {
-        "source": "Unnamed: 23", # Initial ACIR
-        "start": 6,
-        "end": 1045,
-        "title": "Initial ACIR",
-        "save_col": "Initial ACIR(mΩ)",
-        "ylim": (10.4, 12.4),
-        "ystep": 0.1,
-        "lot_screen": True,
-        "step0": True,
-        "step1": True,
-        "weight": 1.5,
-        "lot_limit": 15.0,
-    },
-    {
-        "source": "Unnamed: 26", # 100% ACIR
-        "start": 6,
-        "end": 1045,
-        "title": "ACIR100",
-        "save_col": "ACIR100(mΩ)",
-        "ylim": None,
-        "ystep": 0.1,
-        "lot_screen": False,
-        "step0": False,
-        "step1": False,
-        "lot_limit": 15.0,
-    },
-    {
-        "source": "Unnamed: 29", # 0% ACIR
-        "start": 6,
-        "end": 1045,
-        "title": "ACIR0",
-        "save_col": "ACIR0(mΩ)",
-        "ylim": None,
-        "ystep": 0.1,
-        "lot_screen": False,
-        "step0": False,
-        "step1": False,
-        "lot_limit": 15.0,
-    },
-    {
-        "source": "Unnamed: 33", # 50% ACIR
-        "start": 6,
-        "end": 1045,
-        "title": "ACIR50",
-        "save_col": "ACIR50(mΩ)",
-        "ylim": None,
-        "ystep": 0.1,
-        "lot_screen": False,
-        "step0": False,
-        "step1": False,
-        "lot_limit": 15.0,
-    },
-    {
+ITEM_SPECS: List[ItemSpec] = [    {
         "source": "Unnamed: 7", # Weight
         "start": 6,
         "end": 1045,
@@ -131,21 +77,6 @@ ITEM_SPECS: List[ItemSpec] = [
         "lot_limit": 2.0,
     },
     {
-        "source": "Unnamed: 30",  # Capacity
-        "start": 6,
-        "end": 1045,
-        "title": "Capacity",
-        "save_col": "Capacity(Ah)",
-        "ylim": (4.78, 5.20),
-        "ystep": 0.01,
-        "lot_screen": False,
-        "step0": True,
-        "step1": True,
-        "step2": True,
-        "weight": 4.0,
-        "lot_limit": 3.0,
-    },
-    {
         "source": "Unnamed: 22", # Initial Voltage
         "start": 6,
         "end": 1045,
@@ -157,6 +88,20 @@ ITEM_SPECS: List[ItemSpec] = [
         "step0": False,
         "step1": False,
         "lot_limit": 0.5,
+    },
+{
+        "source": "Unnamed: 23", # Initial ACIR
+        "start": 6,
+        "end": 1045,
+        "title": "Initial ACIR",
+        "save_col": "Initial ACIR(mΩ)",
+        "ylim": (10.4, 12.4),
+        "ystep": 0.1,
+        "lot_screen": True,
+        "step0": True,
+        "step1": True,
+        "weight": 1.5,
+        "lot_limit": 15.0,
     },
     {
         "source": "Unnamed: 25",
@@ -172,6 +117,19 @@ ITEM_SPECS: List[ItemSpec] = [
         "lot_limit": 0.5,
     },
     {
+        "source": "Unnamed: 26", # 100% ACIR
+        "start": 6,
+        "end": 1045,
+        "title": "ACIR100",
+        "save_col": "ACIR100(mΩ)",
+        "ylim": None,
+        "ystep": 0.1,
+        "lot_screen": False,
+        "step0": False,
+        "step1": False,
+        "lot_limit": 15.0,
+    },
+    {
         "source": "Unnamed: 28",
         "start": 6,
         "end": 1045,
@@ -185,7 +143,48 @@ ITEM_SPECS: List[ItemSpec] = [
         "lot_limit": 4.0,
     },
     {
-        "source": "Unnamed: 32",
+        "source": "Unnamed: 29", # 0% ACIR
+        "start": 6,
+        "end": 1045,
+        "title": "ACIR0",
+        "save_col": "ACIR0(mΩ)",
+        "ylim": None,
+        "ystep": 0.1,
+        "lot_screen": False,
+        "step0": False,
+        "step1": False,
+        "lot_limit": 15.0,
+    },
+    {
+        "source": "Unnamed: 31",  # Capacity
+        "start": 6,
+        "end": 1045,
+        "title": "Capacity",
+        "save_col": "Capacity(Ah)",
+        "ylim": (4.78, 5.20),
+        "ystep": 0.01,
+        "lot_screen": False,
+        "step0": True,
+        "step1": True,
+        "step2": True,
+        "weight": 4.0,
+        "lot_limit": 3.0,
+    },
+    {
+        "source": "Unnamed: 32",  # Self Discharge Capacity Rate
+        "start": 6,
+        "end": 1045,
+        "title": "Self Discharge Capacity Rate",
+        "save_col": "Self Discharge Capacity Rate(%)",
+        "ylim": (0.0, 1.0),
+        "ystep": 0.01,
+        "lot_screen": False,
+        "step0": False,
+        "step1": False,
+        "lot_limit": 3.0,
+    },
+    {
+        "source": "Unnamed: 34",
         "start": 6,
         "end": 1045,
         "title": "Voltage3.6",      #3.6V
@@ -199,7 +198,20 @@ ITEM_SPECS: List[ItemSpec] = [
         "lot_limit": 0.8,
     },
     {
-        "source": "Unnamed: 35", # OCV100
+        "source": "Unnamed: 35", # 3.6V ACIR
+        "start": 6,
+        "end": 1045,
+        "title": "ACIR50",
+        "save_col": "ACIR50(mΩ)",
+        "ylim": None,
+        "ystep": 0.1,
+        "lot_screen": False,
+        "step0": False,
+        "step1": False,
+        "lot_limit": 15.0,
+    },
+    {
+        "source": "Unnamed: 37", # OCV100
         "start": 6,
         "end": 1045,
         "title": "OCV100",
@@ -213,7 +225,7 @@ ITEM_SPECS: List[ItemSpec] = [
         "lot_limit": None,
     },
     {
-        "source": "Unnamed: 36", # DCIR100_start
+        "source": "Unnamed: 38", # DCIR100_start
         "start": 6,
         "end": 1045,
         "title": "DCIR100_start",
@@ -227,7 +239,7 @@ ITEM_SPECS: List[ItemSpec] = [
         "lot_limit": None,
     },
     {
-        "source": "Unnamed: 37", # DCIR100_1s
+        "source": "Unnamed: 39", # DCIR100_1s
         "start": 6,
         "end": 1045,
         "title": "DCIR100_1s",
@@ -241,7 +253,7 @@ ITEM_SPECS: List[ItemSpec] = [
         "lot_limit": None,
     },
     {
-        "source": "Unnamed: 38", # DCIR100_10s
+        "source": "Unnamed: 40", # DCIR100_10s
         "start": 6,
         "end": 1045,
         "title": "DCIR100_10s",
@@ -255,7 +267,7 @@ ITEM_SPECS: List[ItemSpec] = [
         "lot_limit": None,
     },
     {
-        "source": "Unnamed: 40", # OCV90
+        "source": "Unnamed: 42", # OCV90
         "start": 6,
         "end": 1045,
         "title": "OCV90",
@@ -269,7 +281,7 @@ ITEM_SPECS: List[ItemSpec] = [
         "lot_limit": None,
     },
     {
-        "source": "Unnamed: 41", # DCIR90_start
+        "source": "Unnamed: 43", # DCIR90_start
         "start": 6,
         "end": 1045,
         "title": "DCIR90_start",
@@ -283,7 +295,7 @@ ITEM_SPECS: List[ItemSpec] = [
         "lot_limit": None,
     },
     {
-        "source": "Unnamed: 42", # DCIR90_1s
+        "source": "Unnamed: 44", # DCIR90_1s
         "start": 6,
         "end": 1045,
         "title": "DCIR90_1s",
@@ -297,7 +309,7 @@ ITEM_SPECS: List[ItemSpec] = [
         "lot_limit": None,
     },
     {
-        "source": "Unnamed: 43", # DCIR90_10s
+        "source": "Unnamed: 45", # DCIR90_10s
         "start": 6,
         "end": 1045,
         "title": "DCIR90_10s",
@@ -311,7 +323,7 @@ ITEM_SPECS: List[ItemSpec] = [
         "lot_limit": None,
     },
     {
-        "source": "Unnamed: 45", # OCV50
+        "source": "Unnamed: 47", # OCV50
         "start": 6,
         "end": 1045,
         "title": "OCV50",
@@ -325,7 +337,7 @@ ITEM_SPECS: List[ItemSpec] = [
         "lot_limit": None,
     },
     {
-        "source": "Unnamed: 46", # DCIR50_start
+        "source": "Unnamed: 48", # DCIR50_start
         "start": 6,
         "end": 1045,
         "title": "DCIR50_start",
@@ -339,7 +351,7 @@ ITEM_SPECS: List[ItemSpec] = [
         "lot_limit": None,
     },
     {
-        "source": "Unnamed: 47", # DCIR50_1s
+        "source": "Unnamed: 49", # DCIR50_1s
         "start": 6,
         "end": 1045,
         "title": "DCIR50_1s",
@@ -353,7 +365,7 @@ ITEM_SPECS: List[ItemSpec] = [
         "lot_limit": None,
     },
     {
-        "source": "Unnamed: 48", # DCIR50_10s
+        "source": "Unnamed: 50", # DCIR50_10s
         "start": 6,
         "end": 1045,
         "title": "DCIR50_10s",
@@ -368,7 +380,7 @@ ITEM_SPECS: List[ItemSpec] = [
         "lot_limit": None,
     },
     {
-        "source": "Unnamed: 50", # OCV10
+        "source": "Unnamed: 52", # OCV10
         "start": 6,
         "end": 1045,
         "title": "OCV10",
@@ -382,7 +394,7 @@ ITEM_SPECS: List[ItemSpec] = [
         "lot_limit": None,
     },
     {
-        "source": "Unnamed: 51", # DCIR10_start
+        "source": "Unnamed: 53", # DCIR10_start
         "start": 6,
         "end": 1045,
         "title": "DCIR10_start",
@@ -396,7 +408,7 @@ ITEM_SPECS: List[ItemSpec] = [
         "lot_limit": None,
     },
     {
-        "source": "Unnamed: 52", # DCIR10_1s
+        "source": "Unnamed: 54", # DCIR10_1s
         "start": 6,
         "end": 1045,
         "title": "DCIR10_1s",
@@ -410,7 +422,7 @@ ITEM_SPECS: List[ItemSpec] = [
         "lot_limit": None,
     },
     {
-        "source": "Unnamed: 53", # DCIR10_10s
+        "source": "Unnamed: 55", # DCIR10_10s
         "start": 6,
         "end": 1045,
         "title": "DCIR10_10s",
@@ -425,7 +437,7 @@ ITEM_SPECS: List[ItemSpec] = [
         "lot_limit": None,
     },
     {
-        "source": "Unnamed: 55", # OCV0
+        "source": "Unnamed: 57", # OCV0
         "start": 6,
         "end": 1045,
         "title": "OCV0",
@@ -439,7 +451,7 @@ ITEM_SPECS: List[ItemSpec] = [
         "lot_limit": None,
     },
     {
-        "source": "Unnamed: 56", # DCIR0_start
+        "source": "Unnamed: 58", # DCIR0_start
         "start": 6,
         "end": 1045,
         "title": "DCIR0_start",
@@ -453,7 +465,7 @@ ITEM_SPECS: List[ItemSpec] = [
         "lot_limit": None,
     },
     {
-        "source": "Unnamed: 57", # DCIR0_1s
+        "source": "Unnamed: 59", # DCIR0_1s
         "start": 6,
         "end": 1045,
         "title": "DCIR0_1s",
@@ -468,7 +480,7 @@ ITEM_SPECS: List[ItemSpec] = [
         "lot_limit": None,
     },
     {
-        "source": "Unnamed: 58", # DCIR0_10s
+        "source": "Unnamed: 60", # DCIR0_10s
         "start": 6,
         "end": 1045,
         "title": "DCIR0_10s",
@@ -482,7 +494,7 @@ ITEM_SPECS: List[ItemSpec] = [
         "lot_limit": None,
     },
     {
-        "source": "Unnamed: 59",
+        "source": "Unnamed: 61",
         "start": 6,
         "end": 1045,
         "title": "Used",
@@ -493,8 +505,7 @@ ITEM_SPECS: List[ItemSpec] = [
         "weight": None,
         "lot_limit": None,
         "is_used": True,
-    },
-]
+    },]
 
 
 def build_step0_items() -> List[Tuple[object, int, int, str, str, Optional[tuple], float]]:

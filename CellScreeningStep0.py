@@ -15,7 +15,7 @@ from analysis_config import ANALYSIS_ITEMS, DESIRED_ORDER, DEFAULT_WEIGHTS
 #- 무게: 70.5g ± 1.7%  → (69.3 ~ 71.7 g)
 #- 초기 ACIR: 11.4mΩ ± 8.8%  → (10.4 ~ 12.4 mΩ)
 
-DEFAULT_DATA_FILE = "RawData/SDI_21700_50S_특성데이터(260212-2).xlsx"
+DEFAULT_DATA_FILE = "RawData/SDI_21700_50S_특성데이터(260212-1623).xlsx"
 DEFAULT_SHEET_NAME = "Raw Data"
 DEFAULT_OUTPUT_DIR = "Results"
 DEFAULT_IQR_FACTOR = 2.5 #1.5 ~ 3.0
