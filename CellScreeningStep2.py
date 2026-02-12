@@ -6,12 +6,14 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from openpyxl.drawing.image import Image as XLImage
+from sklearn.preprocessing import StandardScaler
+
+from analysis_config import STEP2_COLUMNS, MIN_CLUSTER_SIZE, DEFAULT_WEIGHTS
 
 
 DEFAULT_OUTPUT_DIR = "Results"
-DEFAULT_CLUSTER_INDEX = 0
-#ACIR_COLUMNS = ["Initial ACIR(mΩ)", "100% ACIR(mΩ)", "0% ACIR(mΩ)", "50% ACIR(mΩ)"]
-ANALYSIS_COLUMNS = ["Initial ACIR(mΩ)","Capacity(Ah)"]
+DEFAULT_CLUSTER_INDEX = 1
+ANALYSIS_COLUMNS = STEP2_COLUMNS
 
 def _calculate_ranges(df: pd.DataFrame, cols: List[str]) -> Dict[str, Dict[str, float]]:
     ranges = {}
@@ -52,12 +54,12 @@ def _membership_percentile(x, col, ranges, df_col):
     return low_pct, med_pct, high_pct
 
 
-def _select_top_72(df_fis: pd.DataFrame) -> pd.DataFrame:
+def _select_top_pack_num(df_fis: pd.DataFrame) -> pd.DataFrame:
     priority_order = ["Low", "Med", "High"]
     priority_map = {cls: i for i, cls in enumerate(priority_order)}
 
     selected_list = []
-    remaining = 72
+    remaining = MIN_CLUSTER_SIZE
 
     for cls in priority_order:
         if remaining <= 0:
@@ -111,7 +113,24 @@ def run_step2(
 
     print(f"[Step2] Loading '{cs1_file}' sheet '{sheet_name}'...")
     df = pd.read_excel(cs1_file, sheet_name=sheet_name)
-    df[cols] = df[cols].apply(pd.to_numeric, errors="coerce")
+    available_cols = [c for c in cols if c in df.columns]
+    missing_cols = [c for c in cols if c not in df.columns]
+    if missing_cols:
+        print(f"[Step2][WARN] Missing columns skipped: {missing_cols}")
+    if not available_cols:
+        # fallback: pick first 2 numeric-like columns (excluding Lot Number)
+        candidate_cols = [c for c in df.columns if c != "Lot Number"]
+        numeric_cols = []
+        for c in candidate_cols:
+            coerced = pd.to_numeric(df[c], errors="coerce")
+            if coerced.notna().any():
+                numeric_cols.append(c)
+        if not numeric_cols:
+            raise ValueError(f"[Step2] No analysis columns found. Requested: {cols}")
+        available_cols = numeric_cols[:2]
+        print(f"[Step2][WARN] Using fallback columns: {available_cols}")
+    df[available_cols] = df[available_cols].apply(pd.to_numeric, errors="coerce")
+    cols = available_cols
     print(f"[Step2] Loaded {len(df)} rows for analysis columns: {cols}")
 
     worst_cells_df = None
@@ -167,16 +186,23 @@ def run_step2(
             ignore_index=True,
         )
 
-    print("[Step2] Selecting top 72 cells based on FIS results...")
-    df_selected_72 = _select_top_72(df_fis.copy())
-    selected_lot_nums = df_selected_72["Lot Number"].unique().tolist()
+    pack_num = MIN_CLUSTER_SIZE
+    print(f"[Step2] Selecting top {pack_num} cells based on FIS results...")
+    df_selected_pack_num = _select_top_pack_num(df_fis.copy())
+    selected_lot_nums = df_selected_pack_num["Lot Number"].unique().tolist()
     df_selected_raw = df[df["Lot Number"].isin(selected_lot_nums)].copy()
-    print(f"[Step2] Selected {len(df_selected_72)} cells for Best_72 sheets.")
+    print(f"[Step2] Selected {len(df_selected_pack_num)} cells for Best_{pack_num} sheets.")
 
     best_suffix = f"({cluster_index})" if cluster_index is not None else ""
     worst_suffix = f"({worst_cluster})" if worst_cluster is not None else ""
-    best_sheet_name = f"Best_72cells{best_suffix}" if best_suffix else "Best_72cells"
-    best_raw_sheet_name = f"Best_72cells_raw{best_suffix}" if best_suffix else "Best_72cells_raw"
+    best_sheet_name = (
+        f"Best_{MIN_CLUSTER_SIZE}cells{best_suffix}" if best_suffix else f"Best_{MIN_CLUSTER_SIZE}cells"
+    )
+    best_raw_sheet_name = (
+        f"Best_{MIN_CLUSTER_SIZE}cells_raw{best_suffix}"
+        if best_suffix
+        else f"Best_{MIN_CLUSTER_SIZE}cells_raw"
+    )
     worst_sheet_name = f"Worst Cells{worst_suffix}" if worst_suffix else "Worst Cells"
 
     output_path = os.path.join(output_dir, "Step2_Results.xlsx")
@@ -184,7 +210,7 @@ def run_step2(
         df.to_excel(writer, sheet_name="Cluster_Data", index=False)
         df_ranges.to_excel(writer, sheet_name="Ranges", index=False)
         df_fis.to_excel(writer, sheet_name="FIS_Result", index=False)
-        df_selected_72.to_excel(writer, sheet_name=best_sheet_name, index=False)
+        df_selected_pack_num.to_excel(writer, sheet_name=best_sheet_name, index=False)
         df_selected_raw.to_excel(writer, sheet_name=best_raw_sheet_name, index=False)
         if worst_cells_df is not None:
             worst_cells_df.to_excel(writer, sheet_name=worst_sheet_name, index=False)
@@ -229,39 +255,151 @@ def run_step2(
         ranges_sheet.add_image(range_image, "A1")
 
         if len(cols) >= 2:
-            fig_scatter, ax_scatter = plt.subplots(figsize=(6, 5))
             class_color_map = {"Low": "#4daf4a", "Med": "#ff7f00", "High": "#377eb8"}
             colors = df_fis["FIS_Class"].map(class_color_map)
-            ax_scatter.scatter(
-                df[cols[0]],
-                df[cols[1]],
-                c=colors,
-                alpha=0.6,
-                label="All Lots",
+
+            # 1) PCA 2D scatter
+            fig_pca, ax_pca = plt.subplots(figsize=(6, 5))
+            scaler = StandardScaler()
+            X = scaler.fit_transform(df[cols].apply(pd.to_numeric, errors="coerce").fillna(0))
+            # simple 2D PCA via SVD
+            X_centered = X - X.mean(axis=0, keepdims=True)
+            u, s, vt = np.linalg.svd(X_centered, full_matrices=False)
+            pc2 = u[:, :2] * s[:2]
+            cluster_label = (
+                f"Cluster {cluster_index}" if cluster_index is not None else "Cluster"
             )
+            ax_pca.scatter(pc2[:, 0], pc2[:, 1], c=colors, alpha=0.6, label=cluster_label)
             if not df_selected_raw.empty:
-                ax_scatter.scatter(
-                    df_selected_raw[cols[0]],
-                    df_selected_raw[cols[1]],
+                idx_selected = df["Lot Number"].isin(df_selected_raw["Lot Number"])
+                ax_pca.scatter(
+                    pc2[idx_selected, 0],
+                    pc2[idx_selected, 1],
                     color="red",
-                    label="Best 72",
+                    label=f"Best {MIN_CLUSTER_SIZE}",
                     edgecolors="white",
-                    s=40,
+                    s=15,
                 )
-            ax_scatter.set_xlabel(cols[0])
-            ax_scatter.set_ylabel(cols[1])
-            ax_scatter.set_title("Best 72 Highlight")
-            handles, labels_scatter = ax_scatter.get_legend_handles_labels()
-            ax_scatter.legend(handles, labels_scatter, loc="best")
+            ax_pca.set_xlabel("PC1")
+            ax_pca.set_ylabel("PC2")
+            class_counts = df_fis["FIS_Class"].value_counts().reindex(["Low", "Med", "High"], fill_value=0)
+            ax_pca.set_title(f"PCA 2D (Best {MIN_CLUSTER_SIZE} Highlight)")
+            from matplotlib.lines import Line2D
+            base_handles, base_labels = ax_pca.get_legend_handles_labels()
+            class_handles = [
+                Line2D(
+                    [0],
+                    [0],
+                    marker="o",
+                    color="w",
+                    label=f"Low ({class_counts['Low']})",
+                    markerfacecolor="#4daf4a",
+                    markersize=7,
+                ),
+                Line2D(
+                    [0],
+                    [0],
+                    marker="o",
+                    color="w",
+                    label=f"Med ({class_counts['Med']})",
+                    markerfacecolor="#ff7f00",
+                    markersize=7,
+                ),
+                Line2D(
+                    [0],
+                    [0],
+                    marker="o",
+                    color="w",
+                    label=f"High ({class_counts['High']})",
+                    markerfacecolor="#377eb8",
+                    markersize=7,
+                ),
+            ]
+            ax_pca.legend(
+                base_handles + class_handles,
+                base_labels + [h.get_label() for h in class_handles],
+                loc="best",
+            )
             plt.tight_layout()
-            scatter_img = BytesIO()
-            plt.savefig(scatter_img, format="png", dpi=150)
-            plt.close(fig_scatter)
-            scatter_img.seek(0)
-            scatter_sheet = writer.book.create_sheet("Best72_Scatter")
-            scatter_image = XLImage(scatter_img)
-            scatter_image.width, scatter_image.height = 640, 480
-            scatter_sheet.add_image(scatter_image, "A1")
+            pca_img = BytesIO()
+            plt.savefig(pca_img, format="png", dpi=150)
+            plt.close(fig_pca)
+            pca_img.seek(0)
+            pca_sheet = writer.book.create_sheet(f"Best{MIN_CLUSTER_SIZE}_PCA2D")
+            pca_image = XLImage(pca_img)
+            pca_image.width, pca_image.height = 640, 480
+            pca_sheet.add_image(pca_image, "A1")
+
+            # 2) Top-2 weight columns scatter
+            weight_sorted = sorted(DEFAULT_WEIGHTS.items(), key=lambda x: x[1], reverse=True)
+            top2 = [col for col, _ in weight_sorted if col in cols][:2]
+            if len(top2) == 2:
+                fig_scatter, ax_scatter = plt.subplots(figsize=(6, 5))
+                ax_scatter.scatter(
+                    df[top2[0]],
+                    df[top2[1]],
+                    c=colors,
+                    alpha=0.6,
+                    label=cluster_label,
+                )
+                if not df_selected_raw.empty:
+                    ax_scatter.scatter(
+                        df_selected_raw[top2[0]],
+                        df_selected_raw[top2[1]],
+                        color="red",
+                        label=f"Best {MIN_CLUSTER_SIZE}",
+                        edgecolors="white",
+                        s=15,
+                    )
+                ax_scatter.set_xlabel(top2[0])
+                ax_scatter.set_ylabel(top2[1])
+                ax_scatter.set_title(f"Top-2 Weighted Scatter (Best {MIN_CLUSTER_SIZE})")
+                base_handles, base_labels = ax_scatter.get_legend_handles_labels()
+                class_handles = [
+                    Line2D(
+                        [0],
+                        [0],
+                        marker="o",
+                        color="w",
+                        label=f"Low ({class_counts['Low']})",
+                        markerfacecolor="#4daf4a",
+                        markersize=7,
+                    ),
+                    Line2D(
+                        [0],
+                        [0],
+                        marker="o",
+                        color="w",
+                        label=f"Med ({class_counts['Med']})",
+                        markerfacecolor="#ff7f00",
+                        markersize=7,
+                    ),
+                    Line2D(
+                        [0],
+                        [0],
+                        marker="o",
+                        color="w",
+                        label=f"High ({class_counts['High']})",
+                        markerfacecolor="#377eb8",
+                        markersize=7,
+                    ),
+                ]
+                ax_scatter.legend(
+                    base_handles + class_handles,
+                    base_labels + [h.get_label() for h in class_handles],
+                    loc="best",
+                )
+                plt.tight_layout()
+                scatter_img = BytesIO()
+                plt.savefig(scatter_img, format="png", dpi=150)
+                plt.close(fig_scatter)
+                scatter_img.seek(0)
+                scatter_sheet = writer.book.create_sheet(f"Best{MIN_CLUSTER_SIZE}_Top2")
+                scatter_image = XLImage(scatter_img)
+                scatter_image.width, scatter_image.height = 640, 480
+                scatter_sheet.add_image(scatter_image, "A1")
+            else:
+                print("[Step2][WARN] Top-2 weighted columns not found for scatter plot.")
 
     print(f"[Step2] 저장 완료: {output_path}")
     return output_path

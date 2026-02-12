@@ -34,7 +34,7 @@ def main():
     # cs1_path, best_cluster, worst_cluster = run_step1(cs0_path, weights=custom_weights)
 
     ############################### STEP2 ##################################    
-    cluster_index = best_cluster if best_cluster is not None else 0
+    cluster_index = best_cluster if best_cluster is not None else 1
     cs2_path = run_step2(cs1_path, cluster_index=cluster_index, worst_cluster=worst_cluster)
 
     ############################### STEP Modulation ############################

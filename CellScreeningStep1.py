@@ -3,6 +3,7 @@ from io import BytesIO
 from typing import Dict, List
 
 import matplotlib.pyplot as plt
+import math
 import numpy as np
 import pandas as pd
 from openpyxl.drawing.image import Image as XLImage
@@ -11,65 +12,12 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
 from k_means_constrained import KMeansConstrained
 
+from analysis_config import STEP1_COLUMNS, STD_COLS, DEFAULT_WEIGHTS, MIN_CLUSTER_SIZE, MAX_CLUSTER_SIZE
 
-COLUMNS_TO_ANALYZE = {
-    "All item": [
-        "Capacity(Ah)",
-        "Weight(g)",
-        "Height(mm)",
-        "Width(mm)",
-        "Initial Voltage(V)",
-        "100% Voltage(V)",
-        "0% Voltage(V)",
-        "50% Voltage(V)",
-        "Initial ACIR(mΩ)",
-        "100% ACIR(mΩ)",
-        "0% ACIR(mΩ)",
-        "50% ACIR(mΩ)",
-    ]
-}
 
-STD_COLS = [
-    "Capacity(Ah)",
-    "Weight(g)",
-    "Height(mm)",
-    "Width(mm)",
-    "Initial Voltage(V)",
-    "100% Voltage(V)",
-    "0% Voltage(V)",
-    "50% Voltage(V)",
-    "Initial ACIR(mΩ)",
-    "100% ACIR(mΩ)",
-    "0% ACIR(mΩ)",
-    "50% ACIR(mΩ)",
-]
+COLUMNS_TO_ANALYZE = {"All item": STEP1_COLUMNS}
 
 DEFAULT_OUTPUT_DIR = "Results"
-MIN_CLUSTER_SIZE = 72
-
-# 권장 가중치 설정 (0 ~ 5)
-DEFAULT_WEIGHTS = {
-    # Tier 1: 성능/안전 직결
-    "Capacity(Ah)": 3.0,
-    "Initial Voltage(V)": 3.0,
-    "Initial ACIR(mΩ)": 2.5,
-    
-    # Tier 2: 운영 특성
-    "100% ACIR(mΩ)": 2.0,
-    "0% ACIR(mΩ)": 2.0,
-    "50% ACIR(mΩ)": 2.0,
-    
-    "100% Voltage(V)": 1.0,
-    "0% Voltage(V)": 1.0,
-    "50% Voltage(V)": 1.0,
-    
-    # Tier 3: 부가 특성
-    "Weight(g)": 1.5,
-    
-    # Tier 4: 물리적 호환성
-    "Height(mm)": 0.5,
-    "Width(mm)": 0.5,
-}
 
 class BalancedKMeans:
     def __init__(self, n_clusters=10, max_iter=100, random_state=42, tol=1e-4):
@@ -153,9 +101,12 @@ def _normalize_scores(scores: List[float], mode: str) -> np.ndarray:
     return (arr - np.min(arr)) / span
 
 
-def compute_k_metrics(df: pd.DataFrame) -> Dict[str, Dict[str, object]]:
+def compute_k_metrics(
+    df: pd.DataFrame, columns_map: Dict[str, List[str]] | None = None
+) -> Dict[str, Dict[str, object]]:
     results = {}
-    for name, cols in COLUMNS_TO_ANALYZE.items():
+    columns_map = columns_map or COLUMNS_TO_ANALYZE
+    for name, cols in columns_map.items():
         if any(col not in df.columns for col in cols):
             continue
         data = df[cols].dropna().values
@@ -163,16 +114,22 @@ def compute_k_metrics(df: pd.DataFrame) -> Dict[str, Dict[str, object]]:
             continue
 
         print(f"[Step1] Computing K metrics for '{name}' ({len(data)} samples)...")
-        K_range = range(9, 15) ################## K ####################
-        feasible_k = [k for k in K_range if k * MIN_CLUSTER_SIZE <= len(data)]
+        max_k = max(2, min(14, len(data) // MIN_CLUSTER_SIZE))
+        K_range = range(2, max_k + 1) ################## K ####################
+        feasible_k = [
+            k for k in K_range
+            if k * MIN_CLUSTER_SIZE <= len(data) and k * MAX_CLUSTER_SIZE >= len(data)
+        ]
         if not feasible_k:
             raise ValueError(
-                f"데이터 수({len(data)})로는 클러스터 최소 크기 {MIN_CLUSTER_SIZE}을 만족하는 k를 찾을 수 없습니다."
+                f"데이터 수({len(data)})로는 클러스터 크기 범위 "
+                f"{MIN_CLUSTER_SIZE}~{int(MAX_CLUSTER_SIZE)}을 만족하는 k를 찾을 수 없습니다."
             )
         dbi_scores, chi_scores = [], []
         for k in feasible_k:
             print(f"[Step1]   - evaluating k={k}...")
-            size_max = max(MIN_CLUSTER_SIZE, int(len(data) / k * 1.2))
+            size_max = max(MIN_CLUSTER_SIZE, math.ceil(len(data) / k))
+            size_max = min(size_max, int(MAX_CLUSTER_SIZE))
             kmeans = KMeansConstrained(
                 n_clusters=k,
                 size_min=MIN_CLUSTER_SIZE,
@@ -244,13 +201,23 @@ def run_step1(
 ):
     #     
     df = pd.read_excel(cs0_file, sheet_name="Non_Outliers_List")
-    k_results = compute_k_metrics(df)
+    base_cols = COLUMNS_TO_ANALYZE["All item"]
+    feature_cols = [col for col in base_cols if col in df.columns]
+    missing_cols = [col for col in base_cols if col not in df.columns]
+    if missing_cols:
+        print(f"[Step1][WARN] 누락된 분석 항목: {missing_cols}")
+    if len(feature_cols) < 2:
+        raise ValueError(
+            f"필요한 분석 항목 데이터를 찾을 수 없습니다. (가용 컬럼: {feature_cols})"
+        )
+    k_results = compute_k_metrics(df, {"All item": feature_cols})
     if "All item" not in k_results:
-        raise ValueError("필요한 분석 항목 데이터를 찾을 수 없습니다.")
+        raise ValueError(
+            "필요한 분석 항목 데이터를 찾을 수 없습니다. (결측치로 인해 유효 데이터가 없음)"
+        )
 
     k = k_results["All item"]["optimal_k_final"]
     id_col = "Lot Number"
-    feature_cols = COLUMNS_TO_ANALYZE["All item"]
 
     df_use = df[[id_col] + feature_cols].dropna().reset_index(drop=True)
 
@@ -283,7 +250,13 @@ def run_step1(
         [X_weighted[:, 0], np.zeros_like(X_weighted[:, 0])]
     )
 
-    size_max = max(MIN_CLUSTER_SIZE, int(len(df_use) / k * 1.2))
+    size_max = max(MIN_CLUSTER_SIZE, math.ceil(len(df_use) / k))
+    size_max = min(size_max, int(MAX_CLUSTER_SIZE))
+    if size_max * k < len(df_use):
+        raise ValueError(
+            f"[Step1] size_max({size_max}) * k({k}) < n({len(df_use)}). "
+            f"MAX_CLUSTER_SIZE={int(MAX_CLUSTER_SIZE)}를 확인하세요."
+        )
     kmeans_weighted = KMeansConstrained(
         n_clusters=k,
         size_min=MIN_CLUSTER_SIZE,
@@ -299,6 +272,9 @@ def run_step1(
         random_state=42,
     )
     labels_unweighted = kmeans_unweighted.fit_predict(X_scaled)
+    # 클러스터 번호를 1부터 시작하도록 보정
+    labels = labels + 1
+    labels_unweighted = labels_unweighted + 1
     df_use["cluster"] = labels
     df_out = df.merge(df_use[[id_col, "cluster"]], on=id_col, how="left")
 

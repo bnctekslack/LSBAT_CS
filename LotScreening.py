@@ -5,27 +5,8 @@ from typing import Dict, List, Tuple, Optional
 import numpy as np
 import pandas as pd
 
-from CellScreeningStep0 import (
-    DEFAULT_DATA_FILE,
-    DEFAULT_SHEET_NAME,
-    ANALYSIS_ITEMS,
-)
-
-
-LOT_SCREEN_LIMITS = {
-    "Initial ACIR(mΩ)": 15.0,
-    "100% ACIR(mΩ)": 15.0,
-    "0% ACIR(mΩ)": 15.0,
-    "50% ACIR(mΩ)": 15.0,
-    "Weight(g)": 2.0,
-    "Height(mm)": 2.0,
-    "Width(mm)": 2.0,
-    "Capacity(Ah)": 3.0,
-    "Initial Voltage(V)": 0.5,
-    "100% Voltage(V)" : 0.5,
-    "0% Voltage(V)" : 4.0,  # Six Sigma % = 3.8993% 
-    "50% Voltage(V)" : 0.3, # Six Sigma % = 0.2571% 
-}
+from CellScreeningStep0 import DEFAULT_DATA_FILE, DEFAULT_SHEET_NAME
+from analysis_config import ANALYSIS_ITEMS, LOT_SCREEN_LIMITS
 
 DEFAULT_OUTPUT_DIR = "Results"
 METRIC_DETAIL_COLUMNS = [
@@ -64,6 +45,9 @@ def _build_lot_items() -> List[Dict[str, object]]:
 
         metric_name = title
         limit_pct = LOT_SCREEN_LIMITS.get(save_col)
+        if limit_pct is None:
+            # LotScreening 제외 항목은 건너뜀
+            continue
 
         column_candidates = []
         for cand in (column, save_col, title):

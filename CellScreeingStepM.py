@@ -4,11 +4,15 @@ from typing import List, Optional
 import pandas as pd
 from k_means_constrained import KMeansConstrained
 
+from analysis_config import BAT_PACK_SERIES_SIZE, BAT_PACK_PARALLEL_SIZE, MIN_CLUSTER_SIZE
 from CellScreeningStep1 import DEFAULT_WEIGHTS
 
 
 DEFAULT_OUTPUT_DIR = "Results"
-DEFAULT_GROUP_SIZE = 8
+DEFAULT_GROUP_SIZE = BAT_PACK_PARALLEL_SIZE
+
+CAPACITY_COL = "Capacity(Ah)"
+DCIR_SECOND_COL = "DCIR10_10s(mΩ)"
 
 
 def _top_weight_columns() -> List[str]:
@@ -26,23 +30,21 @@ def run_stepM(
     output_dir: str = DEFAULT_OUTPUT_DIR,
 ) -> str:
     suffix = f"({cluster_index})" if cluster_index is not None else ""
-    best_raw_sheet = f"Best_72cells_raw{suffix}" if suffix else "Best_72cells_raw"
+    best_raw_sheet = (
+        f"Best_{MIN_CLUSTER_SIZE}cells_raw{suffix}"
+        if suffix
+        else f"Best_{MIN_CLUSTER_SIZE}cells_raw"
+    )
 
     print(f"[StepM] Loading '{step2_file}' sheet '{best_raw_sheet}'...")
     df = pd.read_excel(step2_file, sheet_name=best_raw_sheet)
     if df.empty:
         raise ValueError(f"[StepM] '{best_raw_sheet}' sheet is empty.")
 
-    weight_cols = _top_weight_columns()
-    similarity_cols = [col for col in weight_cols if col in df.columns]
-    if not similarity_cols:
-        raise ValueError(
-            f"[StepM] No weighted similarity columns found in '{best_raw_sheet}'."
-        )
-    df_numeric = df[similarity_cols].apply(pd.to_numeric, errors="coerce")
-    if df_numeric.isna().all().all():
-        raise ValueError("[StepM] Similarity columns have no numeric values.")
-    df_numeric = df_numeric.fillna(df_numeric.mean(numeric_only=True))
+    if CAPACITY_COL not in df.columns:
+        raise ValueError(f"[StepM] Missing required column: {CAPACITY_COL}")
+    if DCIR_SECOND_COL not in df.columns:
+        raise ValueError(f"[StepM] Missing required column: {DCIR_SECOND_COL}")
 
     total = len(df)
     if total < group_size:
@@ -52,21 +54,32 @@ def run_stepM(
             f"[StepM] Row count ({total}) is not divisible by group size ({group_size})."
         )
 
-    n_clusters = total // group_size
-    X = df_numeric.values
+    expected_total = BAT_PACK_SERIES_SIZE * BAT_PACK_PARALLEL_SIZE
+    if total != expected_total:
+        print(
+            f"[StepM][WARN] Expected {expected_total} rows (Series*Parallel), got {total}."
+        )
 
-    print(f"[StepM] Grouping {total} rows into {n_clusters} groups of {group_size}...")
-    kmeans = KMeansConstrained(
-        n_clusters=n_clusters,
-        size_min=group_size,
-        size_max=group_size,
-        random_state=42,
+    df_sorted = df.copy()
+    df_sorted[CAPACITY_COL] = pd.to_numeric(df_sorted[CAPACITY_COL], errors="coerce")
+    df_sorted[DCIR_SECOND_COL] = pd.to_numeric(df_sorted[DCIR_SECOND_COL], errors="coerce")
+    if df_sorted[CAPACITY_COL].isna().all():
+        raise ValueError(f"[StepM] {CAPACITY_COL} has no numeric values.")
+    if df_sorted[DCIR_SECOND_COL].isna().all():
+        raise ValueError(f"[StepM] {DCIR_SECOND_COL} has no numeric values.")
+    df_sorted = df_sorted.sort_values(by=CAPACITY_COL).reset_index(drop=True)
+
+    # 1) Capacity 기준으로 Series 개수만큼 밴드 생성
+    df_sorted["Band"] = pd.qcut(
+        df_sorted.index + 1,
+        q=BAT_PACK_SERIES_SIZE,
+        labels=[i + 1 for i in range(BAT_PACK_SERIES_SIZE)],
     )
-    labels = kmeans.fit_predict(X)
 
-    df_grouped = df.copy()
-    df_grouped["Group"] = labels + 1
-    df_grouped = df_grouped.sort_values(by="Group").reset_index(drop=True)
+    # 2) 밴드별로 Parallel 단위(9개) 그룹 부여 (밴드 내 추가 정렬 없음)
+    df_grouped = df_sorted.reset_index(drop=True).copy()
+    df_grouped["Group"] = df_grouped["Band"].astype(int)
+    n_clusters = df_grouped["Group"].nunique()
 
     os.makedirs(output_dir, exist_ok=True)
     output_path = os.path.join(output_dir, "StepM_Results.xlsx")

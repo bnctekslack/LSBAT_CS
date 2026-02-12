@@ -7,36 +7,15 @@ import numpy as np
 import pandas as pd
 from openpyxl.drawing.image import Image as XLImage
 
+from analysis_config import ANALYSIS_ITEMS, DESIRED_ORDER, DEFAULT_WEIGHTS
+
 # SDI 21700 배터리 사양서
 #- 공칭 용량: 5.0Ah ± 4%  → (4.80 ~ 5.20 Ah)
 #- 공칭 전압: 3.6V, 초기 전압: 3.45V ± 0.015V → (3.435 ~ 3.465 V)
 #- 무게: 70.5g ± 1.7%  → (69.3 ~ 71.7 g)
 #- 초기 ACIR: 11.4mΩ ± 8.8%  → (10.4 ~ 12.4 mΩ)
-ANALYSIS_ITEMS = [
-    ("Unnamed: 23", 6, 1045, "Initial ACIR", "Initial ACIR(mΩ)", (10.4, 12.4), 0.1),
-    ("Unnamed: 26", 6, 1045, "100% charge ACIR", "100% ACIR(mΩ)", None, 0.1),
-    ("Unnamed: 29", 6, 1045, "0% charge ACIR", "0% ACIR(mΩ)", None, 0.1),
-    ("Unnamed: 33", 6, 1045, "50% charge ACIR", "50% ACIR(mΩ)", None, 0.1),
-    ("Unnamed: 7", 6, 1045, "Weight", "Weight(g)", (70.0, 71.2), 0.1),
-    ("Unnamed: 12", 6, 1045, "Height", "Height(mm)", None, 0.1),
-    ("Unnamed: 14", 6, 1045, "Width", "Width(mm)", None, 0.1),
-    ("Unnamed: 30", 6, 1045, "Capacity", "Capacity(Ah)", (4.78, 5.20), 0.01),
-    ("Unnamed: 22", 6, 1045, "Initial Voltage", "Initial Voltage(V)", (3.44, 3.47), 0.001),
-    ("Unnamed: 25", 6, 1045, "100% charge Voltage", "100% Voltage(V)"),
-    ("Unnamed: 28", 6, 1045, "0% charge Voltage", "0% Voltage(V)"),
-    ("Unnamed: 32", 6, 1045, "50% charge Voltage", "50% Voltage(V)"),
-    ("Unnamed: 34", 6, 1045, "Used", "Used"),
-]
 
-DESIRED_ORDER = [
-    "Lot Number",
-    "Initial ACIR(mΩ)", "100% ACIR(mΩ)", "0% ACIR(mΩ)", "50% ACIR(mΩ)",
-    "Weight(g)", "Height(mm)", "Width(mm)", "Capacity(Ah)",
-    "Initial Voltage(V)", "100% Voltage(V)", "0% Voltage(V)", "50% Voltage(V)",
-    "Used",
-]
-
-DEFAULT_DATA_FILE = "RawData/SDI_21700_50S_특성데이터(251219).xlsx"
+DEFAULT_DATA_FILE = "RawData/SDI_21700_50S_특성데이터(260212-2).xlsx"
 DEFAULT_SHEET_NAME = "Raw Data"
 DEFAULT_OUTPUT_DIR = "Results"
 DEFAULT_IQR_FACTOR = 2.5 #1.5 ~ 3.0
@@ -115,18 +94,34 @@ def run_step0(
 
     outlier_dict_total = {}
     non_outlier_dict_total = {}
+    outlier_dict_temp = {}
+    non_outlier_dict_temp = {}
     missing_data_dict = {}  # 측정값 누락 추적용
     graph_images = {}
     summary_records = []
     remark_map = {}
     lots_with_outlier = set()
 
-    # 전체 Lot 리스트 추출
-    all_lots = df.loc[4:1043, lot_col].dropna().unique()
+    # 전체 Lot 리스트 추출 (ANALYSIS_ITEMS 범위 우선 사용)
+    lot_series = df[lot_col]
+    lot_rows = lot_series.notna()
+    start_idx = min(item[1] for item in ANALYSIS_ITEMS) - 2
+    end_idx = max(item[2] for item in ANALYSIS_ITEMS) - 2
+    if 0 <= start_idx <= end_idx < len(df):
+        range_index = df.loc[start_idx:end_idx].index
+        data_index = range_index[lot_rows.loc[range_index]]
+        all_lots = lot_series.loc[data_index].unique()
+    elif lot_rows.sum() > 0:
+        data_index = lot_series[lot_rows].index
+        all_lots = lot_series[lot_rows].unique()
+    else:
+        # fallback: 기존 고정 범위
+        data_index = df.loc[4:1043].index
+        all_lots = df.loc[4:1043, lot_col].dropna().unique()
     
     # Used에 내용이 있는 Lot 수집 (내용이 있을 때만 Outliers로 이동)
     if remark_columns:
-        remark_series = df.loc[4:1043, [lot_col] + remark_columns]
+        remark_series = df.loc[data_index, [lot_col] + remark_columns]
         for _, row in remark_series.iterrows():
             lot_number = row[lot_col]
             if pd.notna(lot_number):
@@ -141,7 +136,7 @@ def run_step0(
     # Used가 ANALYSIS_ITEMS에 들어 있더라도 분석 대상에서 제외
     analysis_items = [
         item for item in ANALYSIS_ITEMS
-        if len(item) >= 5 and item[4] != "Used"
+        if len(item) >= 5 and str(item[4]).strip().lower() != "used"
     ]
     
     for item in analysis_items:
@@ -155,7 +150,7 @@ def run_step0(
             continue
 
         # 원본 데이터 (변환 전)
-        raw_series = df.loc[start - 2 : end - 2, resolved_col]
+        raw_series = df.loc[data_index, resolved_col]
         
         # 숫자로 변환
         data = pd.to_numeric(raw_series, errors='coerce')
@@ -193,23 +188,23 @@ def run_step0(
                 "하한(lower)": round(lower, 3),
                 "상한(upper)": round(upper, 3),
                 "Q1": round(Q1, 3),
+                "Q2": round(Q2, 3),
                 "Q3": round(Q3, 3),
                 "IQR": round(Q3 - Q1, 3),
+                "평균값": round(data.mean(), 3),
+                "표준편차": round(data.std(ddof=1), 3),
+                "가중치": round(float(DEFAULT_WEIGHTS.get(save_col, 1.0)), 3),
             }
         )
 
         for idx, value in outliers.items():
             lot_number = df.loc[idx, lot_col]
-            outlier_dict_total.setdefault(lot_number, {})[save_col] = value
-            # Lot이 한 항목이라도 이상치면 Non_Outliers에서 완전히 제외
+            outlier_dict_temp.setdefault(lot_number, {})[save_col] = value
             lots_with_outlier.add(lot_number)
-            non_outlier_dict_total.pop(lot_number, None)
 
         for idx, value in non_outliers.items():
             lot_number = df.loc[idx, lot_col]
-            if lot_number in lots_with_outlier:
-                continue
-            non_outlier_dict_total.setdefault(lot_number, {})[save_col] = value
+            non_outlier_dict_temp.setdefault(lot_number, {})[save_col] = value
 
         fig, ax = plt.subplots(figsize=(6, 6))
         ax.boxplot(data, patch_artist=True, boxprops=dict(facecolor="lightblue"))
@@ -224,36 +219,38 @@ def run_step0(
         plt.close(fig)
         graph_images[title] = buf
 
-    # ========== 핵심 수정 부분 ==========
-    # 측정값이 누락된 Lot을 Outliers로 이동
+    # ========== 제거 순서 적용 ==========
+    # 1) 측정값이 누락된 Lot을 Outliers로 이동
     #print("\n📊 측정값 누락 처리 중...")
     for lot, missing_cols in missing_data_dict.items():
-        print(f"[Step0]    {lot}: {len(missing_cols)}개 항목 누락 → Outliers로 이동")
+        #print(f"[Step0]    {lot}: {len(missing_cols)}개 항목 누락 → Outliers로 이동")
         outlier_dict_total.setdefault(lot, {})
 
         # Non_Outliers에 있던 데이터를 Outliers로 이동 후 제거
-        if lot in non_outlier_dict_total:
-            outlier_dict_total[lot].update(non_outlier_dict_total.pop(lot))
+        if lot in non_outlier_dict_temp:
+            outlier_dict_total[lot].update(non_outlier_dict_temp.pop(lot))
 
         # 누락된 항목 표시 (NaN으로)
         for col_name in missing_cols:
             outlier_dict_total.setdefault(lot, {})[col_name] = np.nan
 
-    # Used가 있는 Lot을 Outliers로 이동시키고 Used 컬럼으로 표시
+    # 2) Used가 있는 Lot을 Outliers로 이동시키고 Used 컬럼으로 표시
     if remark_map:
         print("\n[Step0] Used에 사용 표시된 Lot를 Outliers로 이동 중...")
         for lot, remark_text in remark_map.items():
             outlier_dict_total.setdefault(lot, {})
-            if lot in non_outlier_dict_total:
-                outlier_dict_total[lot].update(non_outlier_dict_total.pop(lot))
+            if lot in non_outlier_dict_temp:
+                outlier_dict_total[lot].update(non_outlier_dict_temp.pop(lot))
             outlier_dict_total[lot]["Used"] = remark_text
 
-    # Outliers에 포함된 Lot은 Non_Outliers에서 최종 제거 (안전망)
-    if outlier_dict_total:
-        outlier_lots = set(outlier_dict_total.keys()) | lots_with_outlier
-        for lot in list(non_outlier_dict_total.keys()):
-            if lot in outlier_lots:
-                non_outlier_dict_total.pop(lot, None)
+    # 3) 이상치값 Lot을 Outliers로 이동
+    for lot, values in outlier_dict_temp.items():
+        outlier_dict_total.setdefault(lot, {}).update(values)
+        if lot in non_outlier_dict_temp:
+            non_outlier_dict_temp.pop(lot, None)
+
+    # Non_Outliers 최종 확정
+    non_outlier_dict_total = non_outlier_dict_temp
     # ====================================
 
     outlier_df = pd.DataFrame([{lot_col: lot, **v} for lot, v in outlier_dict_total.items()])
@@ -272,20 +269,39 @@ def run_step0(
 
     summary_df = pd.DataFrame(summary_records)
     summary_df = summary_df[
-        ["항목명", "전체 개수", "이상치 개수", "이상치 비율(%)", "하한(lower)", "상한(upper)", "Q1", "Q3", "IQR"]
+        [
+            "항목명",
+            "전체 개수",
+            "이상치 개수",
+            "이상치 비율(%)",
+            "하한(lower)",
+            "상한(upper)",
+            "Q1",
+            "Q2",
+            "Q3",
+            "IQR",
+            "평균값",
+            "표준편차",
+            "가중치",
+        ]
     ]
 
     # 실행 현황 출력
     initial_lot_count = len(all_lots)
-    missing_lot_count = len(missing_data_dict)
-    used_lot_count = len(remark_map)
+    missing_lots = set(missing_data_dict.keys())
+    used_lots = set(remark_map.keys())
+    missing_lot_count = len(missing_lots)
+    used_lot_count = len(used_lots)
     final_non_outlier_count = len(non_outlier_dict_total)
     final_outlier_count = len(outlier_dict_total)
-    final_total_lot_count = final_outlier_count + final_non_outlier_count
+    final_total_lot_count = final_non_outlier_count
+    outlier_lots = set(outlier_dict_total.keys())
+    outlier_union_count = len(missing_lots | used_lots | outlier_lots)
     print(f"[Step0] 초기 Lot 개수: {initial_lot_count}")
-    print(f"[Step0] 이상치 제거 개수: {final_outlier_count}")
-    print(f"[Step0] 측정값 누락 Lot 개수: {missing_lot_count}")
-    print(f"[Step0] Used 표시 Lot 개수: {used_lot_count}")
+    print(f"[Step0] 1. 측정값 누락 Lot 개수: {missing_lot_count}")
+    print(f"[Step0] 2. Used 표시 Lot 개수: {used_lot_count}")
+    print(f"[Step0] 3. 측정값 이상치 개수: {len(outlier_dict_temp)}")
+    print(f"[Step0] 이상치 제거 사유 합산(중복 제거): {outlier_union_count}")
     print(f"[Step0] 최종 남아있는 Lot 개수: {final_total_lot_count} (Outliers: {final_outlier_count}, Non_Outliers: {final_non_outlier_count})")
 
     output_file = os.path.join(output_dir, "Step0_Results.xlsx")

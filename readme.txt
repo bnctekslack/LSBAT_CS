@@ -1,46 +1,76 @@
-Lot. NASA JSC-20793 Rev.D 문서의 Lot Acceptance Testing을 참조
-    1. OCV, 질량, 용량 등에서 ±3σ 밖에 있는 셀(3-sigma outlier) 을 Lot에서 제외
-    2. 이상치를 제거한 “남은 셀들”로 평균(μ)과 표준편차(σ)를 다시 계산
-    3. 그 결과 분포의 ±3σ 범위가 평균 대비 변동성이 크면(=흩어짐이 크면) Lot 자체를 불합격
-        - 변동성(%) : 6σ/μ * 100 
-        - Limit값은 LOT_SCREEN_LIMITS 참조    
+### 개요
+이 프로그램은 LotScreening → Step0 → Step1 → Step2 순서로 배터리 셀을 선별합니다.
+LotScreening은 Lot 단위의 품질 판정, Step0은 셀 단위 이상치 제거, Step1은 클러스터링, Step2는 최종 72개 셀 선정입니다.
 
-Step0. 배터리 셀 특성 데이터의 이상치(outlier)를 탐지하고 분석
-    1. Used 항목 추가 : 기존 시험에 사용되었던 배터리 셀을 검사목록에서 제거하고 다음단계 진행
-    2. ANALYSIS_ITEMS 구조 : ("Unnamed: 23", 6, 1045, "Initial ACIR Result", "Initial ACIR(mΩ)", (10.4, 12.4), 0.1)
-        - **컬럼명**: Excel의 어느 열을 읽을지
-        - **시작/끝 행**: 6행부터 1045행까지 데이터
-        - **제목**: 그래프 제목
-        - **저장명**: 결과 파일의 컬럼명
-        - **수동 범위**: 이상치 판단 기준 (선택사항)
-        - **Y축 간격**: 그래프 눈금 간격
-    3. get_outliers :  IQR(사분위 범위) 방식으로 이상치를 찾음
-        Q1 (25%) ─── Q2 (중앙값) ─── Q3 (75%)
-            └─ IQR = Q3 - Q1 ─┘
+### 분석 항목 설정 (중앙 설정)
+모든 분석 항목은 `analysis_config.py`의 `ITEM_SPECS`에서 관리합니다.
+여기서 항목을 추가/삭제하거나 사용 여부를 조정하면 Step0/Step1/LotScreening/Step2에 모두 반영됩니다.
 
-        이상치 기준:
-        - 하한: Q1 - (factor × IQR)  [기본 2.5배]
-        - 상한: Q3 + (factor × IQR)
+`ITEM_SPECS` 주요 필드:
+1. `source`: 원본 엑셀 컬럼명 (예: `Unnamed: 35`)
+2. `save_col`: 결과/분석에서 사용하는 컬럼명 (단위 포함 권장)
+3. `step0`, `step1`, `step2`, `lot_screen`: 각 단계 포함 여부
+4. `weight`: Step1 가중치 (step1=True일 때만 사용)
+5. `lot_limit`: LotScreening limit(%)
+6. `is_used`: Used 표시용 컬럼이면 True
 
-Step1. 정상으로 판정된 배터리들을 K-Means 클러스터링으로 그룹화
-    1. 12개 특성을 기준으로 배터리를 분류
-    2. compute_k_metrics : 최적의 K 찾기
-        DBI (Davies-Bouldin Index) - 낮을수록 좋음
-        CHI (Calinski-Harabasz Index) - 높을수록 좋음
-    3. 데이터 정규화
-    4. 최고의 클러스트 선정 : 각 클러스터의 표준편차 계산 -> 표준편차를 순위로 변환 -> 순위 합계가 가장 낮음 (가장 안정적)
+### LotScreening (Lot 단위 판정)
+Lot. NASA JSC-20793 Rev.D 문서의 Lot Acceptance Testing 로직을 기반으로 합니다.
+1. `analysis_config.py`의 `LOT_SCREEN_LIMITS`에 따라 항목별 3-sigma outlier 제거
+2. outlier 제거 후 평균(μ), 표준편차(σ) 재계산
+3. 변동성(%) = 6σ/μ * 100
+4. 변동성이 limit(%)를 넘으면 Lot 불합격
 
-Step2. 엑셀 파일에서 특정 클러스터 데이터를 읽어와 퍼지 멤버십(Fuzzy Membership) 및 백분위수(Percentile) 기반으로 
-    1. 데이터를 분류하고, 최종적으로 72개의 샘플을 우선순위에 따라 선정하여 결과를 엑셀 파일로 저장
-    2. 분석에 사용할 컬럼 이름들 
-    3. _calculate_ranges() : 각 분석 컬럼의 데이터 범위를 계산하고, 데이터를 3분위수(33%, 66%)를 기준으로 
-        Low, Mid1, Mid2, High 4개 지점으로 나눕니다
-    4. _membership_percentile() : 특정 데이터 포인트가 Low, Med1-Mid2, High 범위에 속할 때, 
-        해당 범위 내에서의 백분위수를 계산하여 반환합니다.
-    5. _select_top_72() : 계산된 FIS(Fuzzy Inference System) 등급과 백분위수 평균을 기준으로 
-        총 72개의 데이터 포인트를 선택합니다
-    
-사용자 결정사항
-    Step0의 이상치 판단 기준 : "Initial ACIR(mΩ)","Weight(g)", "Capacity(Ah)","Initial Voltage(V)"
-    Step1의 K값은 MIN_CLUSTER_SIZE에 의해 결정됨, 가중치 : "DEFAULT_WEIGHTS"
-    Step2의 분석에 사용할 항목들 : ANALYSIS_COLUMNS = ["Initial ACIR(mΩ)","Capacity(Ah)"]
+### Step0 (셀 단위 이상치 제거)
+Step0는 원본 엑셀에서 항목별 이상치를 탐지하고 Outliers/Non_Outliers를 분리합니다.
+1. Used 표시 셀은 Outliers로 이동
+2. 측정값 누락 셀은 Outliers로 이동
+3. 나머지 항목에 대해 IQR 방식으로 이상치 판단
+4. 결과: `Results/Step0_Results.xlsx`
+
+IQR 기준:
+1. Q1 (25%), Q2 (중앙값), Q3 (75%)
+2. IQR = Q3 - Q1
+3. 하한 = Q1 - (factor × IQR)
+4. 상한 = Q3 + (factor × IQR)
+
+### Step1 (클러스터링)
+Step1은 Step0의 Non_Outliers를 대상으로 K-Means 클러스터링을 수행합니다.
+1. `analysis_config.py`의 `STEP1_COLUMNS`, `DEFAULT_WEIGHTS` 사용
+2. K는 DBI/CHI 점수를 이용해 최적 선택
+3. 클러스터 번호는 1부터 시작
+4. 결과: `Results/Step1_Results.xlsx`
+
+### Step2 (최종 72개 선정)
+Step2는 특정 클러스터 시트를 읽어 퍼지 멤버십/백분위수 기반으로 72개 셀을 선택합니다.
+1. 분석 컬럼은 `analysis_config.py`의 `STEP2_COLUMNS` 사용
+2. 컬럼이 없으면 경고 후 자동 fallback(숫자형 컬럼 중 첫 2개)
+3. 결과: `Results/Step2_Results.xlsx`
+
+### StepM (팩 구성용 그룹핑)
+StepM은 Step2에서 선택된 Best 셀을 **Parallel 크기 기준으로 그룹핑**합니다.
+1. Capacity(Ah)로 전체를 정렬
+2. Capacity를 `BAT_PACK_SERIES_SIZE` 등분해 밴드 생성
+3. 밴드당 `BAT_PACK_PARALLEL_SIZE`개씩 그룹으로 묶음
+4. 결과: `Results/StepM_Results.xlsx`
+
+### Pack 구성
+1. 9개의 밴드를 round-robin 방식으로 1P~9P로 구성하면 됨.
+
+### 자주 조정하는 항목
+1. Step0 이상치 기준: `analysis_config.py`의 `ylim/ystep` 및 `DEFAULT_IQR_FACTOR`
+2. Step1 가중치: `analysis_config.py`의 `weight`
+3. LotScreening 기준: `analysis_config.py`의 `lot_limit`
+4. Step2 분석 컬럼: `analysis_config.py`의 `step2=True` 설정
+
+### 실행 방법 예시
+1. 전체 파이프라인 실행
+   - `python main.py`
+2. 개별 실행
+   - LotScreening: `run_lot_screen()`  
+   - Step0: `run_step0()`  
+   - Step1: `run_step1(cs0_path)`  
+   - Step2: `run_step2(cs1_path, cluster_index=best_cluster)`
+
+### 결과 파일 위치
+모든 결과는 기본적으로 `Results/` 폴더에 저장됩니다.
