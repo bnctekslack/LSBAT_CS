@@ -39,7 +39,19 @@ Step1은 Step0의 Non_Outliers를 대상으로 K-Means 클러스터링을 수행
 1. `analysis_config.py`의 `STEP1_COLUMNS`, `DEFAULT_WEIGHTS` 사용
 2. K는 DBI/CHI 점수를 이용해 최적 선택
 3. 클러스터 번호는 1부터 시작
-4. 결과: `Results/Step1_Results.xlsx`
+4. 가중치 적용 특성공간에서 중심점과 가장 가까운 셀 72개를 `Best72` 시트로 저장
+5. `Cluster_Scatter`, `Cluster_Scatter_ByCluster` 그래프에 `Best72`를 별(`*`) 마커로 표시
+6. `Cluster_STD`, `Cluster_STD_Rank`에 `Best72(Overall)` 행 추가
+7. 결과: `Results/Step1_Results.xlsx`
+
+K-Means 클러스터링이란?
+K-Means는 데이터들을 `K`개의 그룹으로 나누는 비지도 학습 알고리즘입니다.
+1. 먼저 `K`개의 중심점(centroid)을 초기화합니다.
+2. 각 데이터를 가장 가까운 중심점에 할당합니다.
+3. 할당된 데이터의 평균으로 중심점을 다시 계산합니다.
+4. 중심점 변화가 거의 없어질 때까지 2~3을 반복합니다.
+
+이 프로젝트에서는 셀 특성값이 비슷한 셀끼리 묶기 위해 사용하며, `K`는 DBI/CHI 지표를 함께 보고 자동으로 선택합니다.
 
 ### Step2 (최종 72개 선정)
 Step2는 특정 클러스터 시트를 읽어 퍼지 멤버십/백분위수 기반으로 72개 셀을 선택합니다.

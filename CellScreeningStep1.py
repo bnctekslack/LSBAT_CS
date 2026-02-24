@@ -16,6 +16,7 @@ from analysis_config import STEP1_COLUMNS, STD_COLS, DEFAULT_WEIGHTS, MIN_CLUSTE
 
 
 COLUMNS_TO_ANALYZE = {"All item": STEP1_COLUMNS}
+BEST_N_CELLS = 72
 
 DEFAULT_OUTPUT_DIR = "Results"
 
@@ -307,9 +308,40 @@ def run_step1(
         }
     )
 
+    best_n = min(BEST_N_CELLS, len(df_use))
+    center = X_weighted.mean(axis=0)
+    dist_to_center = np.linalg.norm(X_weighted - center, axis=1)
+    df_best72 = df_use[[id_col] + feature_cols + ["cluster"]].copy()
+    df_best72["distance_to_center"] = dist_to_center
+    df_best72 = (
+        df_best72.sort_values("distance_to_center", ascending=True)
+        .head(best_n)
+        .reset_index(drop=True)
+    )
+    df_best72.insert(0, "rank", np.arange(1, len(df_best72) + 1))
+    if best_n < BEST_N_CELLS:
+        print(f"[Step1][WARN] 데이터 수({len(df_use)})가 {BEST_N_CELLS} 미만이어서 Best{best_n}만 저장합니다.")
+    best72_lots = set(df_best72[id_col].tolist())
+    best72_std_row = {"cluster": "Best72(Overall)"}
+    if std_cols_use:
+        best72_std_values = df_out[df_out[id_col].isin(best72_lots)][std_cols_use].std()
+        for col in std_cols_use:
+            best72_std_row[col] = best72_std_values.get(col, np.nan)
+    df_cluster_std_output = pd.concat(
+        [df_cluster_std, pd.DataFrame([best72_std_row])],
+        ignore_index=True,
+    )
+
     # 가중치 적용 순위 합산
     df_rank["total_rank"] = sum(
         df_rank[col] * weights_to_use.get(col, 1.0)
+        for col in std_cols_use
+    )
+    df_rank_output = df_cluster_std_output.copy()
+    for col in std_cols_use:
+        df_rank_output[col] = df_cluster_std_output[col].rank(method="min", ascending=True)
+    df_rank_output["total_rank"] = sum(
+        df_rank_output[col] * weights_to_use.get(col, 1.0)
         for col in std_cols_use
     )
     # =====================================
@@ -361,9 +393,10 @@ def run_step1(
         for c in sorted(df_out["cluster"].dropna().unique()):
             cluster_members = df_out[df_out["cluster"] == c][["Lot Number"] + feature_cols]
             cluster_members.to_excel(writer, sheet_name=f"Cluster{int(c)}", index=False)
-        
-        df_cluster_std.to_excel(writer, sheet_name="Cluster_STD", index=False)
-        df_rank.to_excel(writer, sheet_name="Cluster_STD_Rank", index=False)
+        df_best72.to_excel(writer, sheet_name="Best72", index=False)
+
+        df_cluster_std_output.to_excel(writer, sheet_name="Cluster_STD", index=False)
+        df_rank_output.to_excel(writer, sheet_name="Cluster_STD_Rank", index=False)
         df_weights.to_excel(writer, sheet_name="Applied_Weights", index=False)  # 새 시트
         df_compare_summary.to_excel(writer, sheet_name="Cluster_Compare_Summary", index=False)
         df_compare_matrix.to_excel(writer, sheet_name="Cluster_Compare_Contingency")
@@ -386,6 +419,19 @@ def run_step1(
                 label=f"Cluster {cluster_id}",
                 s=25,
                 alpha=0.7,
+            )
+        best72_points = scatter_plot_df[scatter_plot_df["Lot Number"].isin(best72_lots)]
+        if not best72_points.empty:
+            ax.scatter(
+                best72_points["PC1"],
+                best72_points["PC2"],
+                marker="*",
+                c="black",
+                s=90,
+                linewidths=0.6,
+                edgecolors="white",
+                label=f"Best{len(best72_points)}",
+                zorder=5,
             )
         ax.set_title("Cluster Distribution (PCA 2D)")
         ax.set_xlabel("PC1")
@@ -421,6 +467,18 @@ def run_step1(
                     s=30,
                     alpha=0.8,
                 )
+                cluster_best72 = cluster_points[cluster_points["Lot Number"].isin(best72_lots)]
+                if not cluster_best72.empty:
+                    ax.scatter(
+                        cluster_best72["PC1"],
+                        cluster_best72["PC2"],
+                        marker="*",
+                        c="black",
+                        s=95,
+                        linewidths=0.6,
+                        edgecolors="white",
+                        zorder=5,
+                    )
                 ax.set_title(f"Cluster {cluster_id}")
                 ax.set_xlabel("PC1")
                 ax.set_ylabel("PC2")
