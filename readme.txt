@@ -44,8 +44,7 @@ Step1은 Step0의 Non_Outliers를 대상으로 K-Means 클러스터링을 수행
 6. `Cluster_STD`, `Cluster_STD_Rank`에 `Best72(Overall)` 행 추가
 7. 결과: `Results/Step1_Results.xlsx`
 
-K-Means 클러스터링이란?
-K-Means는 데이터들을 `K`개의 그룹으로 나누는 비지도 학습 알고리즘입니다.
+K-Means : 데이터들을 `K`개의 그룹으로 나누는 비지도 학습 알고리즘입니다.
 1. 먼저 `K`개의 중심점(centroid)을 초기화합니다.
 2. 각 데이터를 가장 가까운 중심점에 할당합니다.
 3. 할당된 데이터의 평균으로 중심점을 다시 계산합니다.
