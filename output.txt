@@ -1,12 +1,12 @@
 [LotScreen] Loading source data...
 [LotScreen] Lot identifier column: Unnamed: 0
 [LotScreen] Processing metric 'Weight' (Weight(g))...
-[LotScreen]   → Weight(g): Six Sigma % = 1.4219% (limit 2.00%) => PASS    
+[LotScreen]   → Weight(g): Six Sigma % = 1.4219% (limit 2.00%) => PASS
 [LotScreen] Processing metric 'Height' (Height(mm))...
-[LotScreen]   → Height(mm): Six Sigma % = 0.4261% (limit 2.00%) => PASS   
+[LotScreen]   → Height(mm): Six Sigma % = 0.4261% (limit 2.00%) => PASS
 [LotScreen] Processing metric 'Diameter' (Diameter(mm))...
-[LotScreen]   → Diameter(mm): Six Sigma % = 0.5695% (limit 2.00%) => PASS 
-[LotScreen] Processing metric 'Initial ACIR' (Initial ACIR(mΩ))...        
+[LotScreen]   → Diameter(mm): Six Sigma % = 0.5695% (limit 2.00%) => PASS
+[LotScreen] Processing metric 'Initial ACIR' (Initial ACIR(mΩ))...
 [LotScreen]   → Initial ACIR(mΩ): Six Sigma % = 14.9414% (limit 15.00%) => PASS
 [LotScreen] Processing metric 'Voltage3.6' (Voltage3.6(V))...
 [LotScreen]   → Voltage3.6(V): Six Sigma % = 0.7396% (limit 0.80%) => PASS
@@ -44,10 +44,10 @@
 [Step0] Used에 사용 표시된 Lot를 Outliers로 이동 중...
 [Step0] 초기 Lot 개수: 1040
 [Step0] 1. 측정값 누락 Lot 개수: 254
-[Step0] 2. Used 표시 Lot 개수: 254
+[Step0] 2. Used 표시 Lot 개수: 317
 [Step0] 3. 측정값 이상치 개수: 164
 [Step0] 이상치 제거 사유 합산(중복 제거): 409
-[Step0] 최종 남아있는 Lot 개수: 631 (Outliers: 409, Non_Outliers: 631)    
+[Step0] 최종 남아있는 Lot 개수: 631 (Outliers: 409, Non_Outliers: 631)
 
 [Step0] 저장 완료: Results\Step0_Results.xlsx
 [Step0] Summary 시트에서 항목별 이상치 비율과 IQR 확인 가능.

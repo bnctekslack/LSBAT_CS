@@ -39,18 +39,7 @@ Step1은 Step0의 Non_Outliers를 대상으로 K-Means 클러스터링을 수행
 1. `analysis_config.py`의 `STEP1_COLUMNS`, `DEFAULT_WEIGHTS` 사용
 2. K는 DBI/CHI 점수를 이용해 최적 선택
 3. 클러스터 번호는 1부터 시작
-4. 가중치 적용 특성공간에서 중심점과 가장 가까운 셀 72개를 `Best72` 시트로 저장
-5. `Cluster_Scatter`, `Cluster_Scatter_ByCluster` 그래프에 `Best72`를 별(`*`) 마커로 표시
-6. `Cluster_STD`, `Cluster_STD_Rank`에 `Best72(Overall)` 행 추가
-7. 결과: `Results/Step1_Results.xlsx`
-
-K-Means : 데이터들을 `K`개의 그룹으로 나누는 비지도 학습 알고리즘입니다.
-1. 먼저 `K`개의 중심점(centroid)을 초기화합니다.
-2. 각 데이터를 가장 가까운 중심점에 할당합니다.
-3. 할당된 데이터의 평균으로 중심점을 다시 계산합니다.
-4. 중심점 변화가 거의 없어질 때까지 2~3을 반복합니다.
-
-이 프로젝트에서는 셀 특성값이 비슷한 셀끼리 묶기 위해 사용하며, `K`는 DBI/CHI 지표를 함께 보고 자동으로 선택합니다.
+4. 결과: `Results/Step1_Results.xlsx`
 
 ### Step2 (최종 72개 선정)
 Step2는 특정 클러스터 시트를 읽어 퍼지 멤버십/백분위수 기반으로 72개 셀을 선택합니다.
@@ -59,14 +48,14 @@ Step2는 특정 클러스터 시트를 읽어 퍼지 멤버십/백분위수 기�
 3. 결과: `Results/Step2_Results.xlsx`
 
 ### StepM (팩 구성용 그룹핑)
-StepM은 Step2에서 선택된 Best 셀을 **Parallel 크기 기준으로 그룹핑**합니다.
+StepM은 Step2에서 선택된 Best 셀을 **8S9P 팩 구성 기준으로 그룹핑**합니다.
 1. Capacity(Ah)로 전체를 정렬
-2. Capacity를 `BAT_PACK_SERIES_SIZE` 등분해 밴드 생성
-3. 밴드당 `BAT_PACK_PARALLEL_SIZE`개씩 그룹으로 묶음
+2. Capacity를 `BAT_PACK_SERIES_SIZE` 등분해 `Band` 생성 (`Band` = S1~S8)
+3. 각 `Band` 안에서 `Group` 번호를 1~`BAT_PACK_PARALLEL_SIZE`로 부여 (`Group` = P1~P9)
 4. 결과: `Results/StepM_Results.xlsx`
 
 ### Pack 구성
-1. 9개의 밴드를 round-robin 방식으로 1P~9P로 구성하면 됨.
+1. `Band`는 직렬 위치(S1~S8), `Group`은 해당 직렬 위치 안의 병렬 셀 위치(P1~P9)를 의미합니다.
 
 ### 자주 조정하는 항목
 1. Step0 이상치 기준: `analysis_config.py`의 `ylim/ystep` 및 `DEFAULT_IQR_FACTOR`

@@ -1,8 +1,8 @@
 from LotScreening import run_lot_screen
 from CellScreeningStep0 import run_step0
 from CellScreeningStep1 import run_step1
-from CellScreeningStep2 import run_step2
-from CellScreeingStepM import run_stepM
+from CellScreeningStep2 import run_step2_all
+from CellScreeingStepM import run_stepM_all
 
 def main():
     ############################### LOT Screen ##################################
@@ -34,11 +34,10 @@ def main():
     # cs1_path, best_cluster, worst_cluster = run_step1(cs0_path, weights=custom_weights)
 
     ############################### STEP2 ##################################    
-    cluster_index = best_cluster if best_cluster is not None else 1
-    cs2_path = run_step2(cs1_path, cluster_index=cluster_index, worst_cluster=worst_cluster)
+    cs2_path = run_step2_all(cs1_path)
 
     ############################### STEP Modulation ############################
-    run_stepM(cs2_path, cluster_index=cluster_index)
+    run_stepM_all(cs2_path)
 
 if __name__ == "__main__":
     main()
