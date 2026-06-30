@@ -9,7 +9,6 @@ ItemSpec = Dict[str, object]
 """
 ITEM_SPECS 작성 방법:
 - source: 원본 엑셀 컬럼명(예: "Unnamed: 35")
-- start/end: 데이터 행 범위 (1-based, 엑셀 행 기준)
 - title: 그래프/로그에 표시될 제목
 - save_col: 결과 엑셀 컬럼명 (단위 포함 권장)
 - ylim/ystep: 박스플롯 y축 범위/간격 (없으면 None)
@@ -22,11 +21,14 @@ ITEM_SPECS 작성 방법:
 - is_used: Used 표시용 컬럼이면 True
 """
 
+# 모든 분석 항목이 공통으로 사용할 원본 엑셀 데이터 행 범위입니다.
+# 1-based 엑셀 행 번호 기준이며, ITEM_SPECS 내부 start/end 값보다 우선합니다.
+DATA_START_ROW = 6
+DATA_END_ROW = 1305
+
 # 예시 템플릿 (필요 시 복사 후 사용)
 # {
 #     "source": "Unnamed: 40",
-#     "start": 6,
-#     "end": 1045,
 #     "title": "New Metric",
 #     "save_col": "New Metric(unit)",
 #     "ylim": None,
@@ -41,19 +43,15 @@ ITEM_SPECS 작성 방법:
 
 ITEM_SPECS: List[ItemSpec] = [    {
         "source": "Unnamed: 7", # Weight
-        "start": 6,
-        "end": 1045,
         "title": "Weight",
         "save_col": "Weight(g)",
-        "ylim": (70.0, 71.2),
+        "ylim": None,
         "ystep": 0.1,
         "step1": False,
         "lot_limit": 2.0,
     },
     {
         "source": "Unnamed: 12", # Height
-        "start": 6,
-        "end": 1045,
         "title": "Height",
         "save_col": "Height(mm)",
         "ylim": None,
@@ -65,8 +63,6 @@ ITEM_SPECS: List[ItemSpec] = [    {
     },
     {
         "source": "Unnamed: 14", # Diameter
-        "start": 6,
-        "end": 1045,
         "title": "Diameter",
         "save_col": "Diameter(mm)",
         "ylim": None,
@@ -76,89 +72,75 @@ ITEM_SPECS: List[ItemSpec] = [    {
         "step1": False,
         "lot_limit": 2.0,
     },
-    {
-        "source": "Unnamed: 22", # Initial Voltage
-        "start": 6,
-        "end": 1045,
-        "title": "Initial Voltage",
-        "save_col": "Initial Voltage(V)",
-        "ylim": (3.44, 3.47),
-        "ystep": 0.001,
-        "lot_screen": False,
-        "step0": False,
-        "step1": False,
-        "lot_limit": 0.5,
-    },
-{
-        "source": "Unnamed: 23", # Initial ACIR
-        "start": 6,
-        "end": 1045,
-        "title": "Initial ACIR",
-        "save_col": "Initial ACIR(mΩ)",
-        "ylim": (10.4, 12.4),
-        "ystep": 0.1,
-        "lot_screen": True,
-        "step0": True,
-        "step1": True,
-        "weight": 1.5,
-        "lot_limit": 15.0,
-    },
-    {
-        "source": "Unnamed: 25",
-        "start": 6,
-        "end": 1045,
-        "title": "Voltage4.2",   #4.2V
-        "save_col": "Voltage4.2(V)",
-        "ylim": None,
-        "ystep": 0.1,
-        "lot_screen": False,
-        "step0": False,
-        "step1": False,
-        "lot_limit": 0.5,
-    },
-    {
-        "source": "Unnamed: 26", # 100% ACIR
-        "start": 6,
-        "end": 1045,
-        "title": "ACIR100",
-        "save_col": "ACIR100(mΩ)",
-        "ylim": None,
-        "ystep": 0.1,
-        "lot_screen": False,
-        "step0": False,
-        "step1": False,
-        "lot_limit": 15.0,
-    },
-    {
-        "source": "Unnamed: 28",
-        "start": 6,
-        "end": 1045,
-        "title": "Voltage2.5",        #2.5V
-        "save_col": "Voltage2.5(V)",
-        "ylim": None,
-        "ystep": 0.1,
-        "lot_screen": False,
-        "step0": False,
-        "step1": False,
-        "lot_limit": 4.0,
-    },
-    {
-        "source": "Unnamed: 29", # 0% ACIR
-        "start": 6,
-        "end": 1045,
-        "title": "ACIR0",
-        "save_col": "ACIR0(mΩ)",
-        "ylim": None,
-        "ystep": 0.1,
-        "lot_screen": False,
-        "step0": False,
-        "step1": False,
-        "lot_limit": 15.0,
-    },
+    # {
+    #     "source": "Unnamed: 22", # Initial Voltage
+    #     "title": "Initial Voltage",
+    #     "save_col": "Initial Voltage(V)",
+    #     "ylim": (3.44, 3.47),
+    #     "ystep": 0.001,
+    #     "lot_screen": False,
+    #     "step0": False,
+    #     "step1": False,
+    #     "lot_limit": 0.5,
+    # },
+    # {
+    #     "source": "Unnamed: 23", # Initial ACIR
+    #     "title": "Initial ACIR",
+    #     "save_col": "Initial ACIR(mΩ)",
+    #     "ylim": (10.4, 12.4),
+    #     "ystep": 0.1,
+    #     "lot_screen": True,
+    #     "step0": True,
+    #     "step1": True,
+    #     "weight": 1.5,
+    #     "lot_limit": 15.0,
+    # },
+    # {
+    #     "source": "Unnamed: 25",
+    #     "title": "Voltage4.2",   #4.2V
+    #     "save_col": "Voltage4.2(V)",
+    #     "ylim": None,
+    #     "ystep": 0.1,
+    #     "lot_screen": False,
+    #     "step0": False,
+    #     "step1": False,
+    #     "lot_limit": 0.5,
+    # },
+    # {
+    #     "source": "Unnamed: 26", # 100% ACIR
+    #     "title": "ACIR100",
+    #     "save_col": "ACIR100(mΩ)",
+    #     "ylim": None,
+    #     "ystep": 0.1,
+    #     "lot_screen": False,
+    #     "step0": False,
+    #     "step1": False,
+    #     "lot_limit": 15.0,
+    # },
+    # {
+    #     "source": "Unnamed: 28",
+    #     "title": "Voltage2.5",        #2.5V
+    #     "save_col": "Voltage2.5(V)",
+    #     "ylim": None,
+    #     "ystep": 0.1,
+    #     "lot_screen": False,
+    #     "step0": False,
+    #     "step1": False,
+    #     "lot_limit": 4.0,
+    # },
+    # {
+    #     "source": "Unnamed: 29", # 0% ACIR
+    #     "title": "ACIR0",
+    #     "save_col": "ACIR0(mΩ)",
+    #     "ylim": None,
+    #     "ystep": 0.1,
+    #     "lot_screen": False,
+    #     "step0": False,
+    #     "step1": False,
+    #     "lot_limit": 15.0,
+    # },
     {
         "source": "Unnamed: 31",  # Capacity
-        "start": 6,
-        "end": 1045,
         "title": "Capacity",
         "save_col": "Capacity(Ah)",
         "ylim": (4.78, 5.20),
@@ -170,50 +152,42 @@ ITEM_SPECS: List[ItemSpec] = [    {
         "weight": 4.0,
         "lot_limit": 3.0,
     },
-    {
-        "source": "Unnamed: 32",  # Self Discharge Capacity Rate
-        "start": 6,
-        "end": 1045,
-        "title": "Self Discharge Capacity Rate",
-        "save_col": "Self Discharge Capacity Rate(%)",
-        "ylim": (0.0, 1.0),
-        "ystep": 0.01,
-        "lot_screen": False,
-        "step0": False,
-        "step1": False,
-        "lot_limit": 3.0,
-    },
-    {
-        "source": "Unnamed: 34",
-        "start": 6,
-        "end": 1045,
-        "title": "Voltage3.6",      #3.6V
-        "save_col": "Voltage3.6(V)",
-        "ylim": None,
-        "ystep": 0.1,
-        "lot_screen": True,
-        "step0": True,
-        "step1": True,
-        "weight": 0.2,
-        "lot_limit": 0.8,
-    },
-    {
-        "source": "Unnamed: 35", # 3.6V ACIR
-        "start": 6,
-        "end": 1045,
-        "title": "ACIR50",
-        "save_col": "ACIR50(mΩ)",
-        "ylim": None,
-        "ystep": 0.1,
-        "lot_screen": False,
-        "step0": False,
-        "step1": False,
-        "lot_limit": 15.0,
-    },
+    # {
+    #     "source": "Unnamed: 32",  # Self Discharge Capacity Rate
+    #     "title": "Self Discharge Capacity Rate",
+    #     "save_col": "Self Discharge Capacity Rate(%)",
+    #     "ylim": (0.0, 1.0),
+    #     "ystep": 0.01,
+    #     "lot_screen": False,
+    #     "step0": False,
+    #     "step1": False,
+    #     "lot_limit": 3.0,
+    # },
+    # {
+    #     "source": "Unnamed: 34",
+    #     "title": "Voltage3.6",      #3.6V
+    #     "save_col": "Voltage3.6(V)",
+    #     "ylim": None,
+    #     "ystep": 0.1,
+    #     "lot_screen": True,
+    #     "step0": True,
+    #     "step1": True,
+    #     "weight": 0.2,
+    #     "lot_limit": 0.8,
+    # },
+    # {
+    #     "source": "Unnamed: 35", # 3.6V ACIR
+    #     "title": "ACIR50",
+    #     "save_col": "ACIR50(mΩ)",
+    #     "ylim": None,
+    #     "ystep": 0.1,
+    #     "lot_screen": False,
+    #     "step0": False,
+    #     "step1": False,
+    #     "lot_limit": 15.0,
+    # },
     {
         "source": "Unnamed: 37", # OCV100
-        "start": 6,
-        "end": 1045,
         "title": "OCV100",
         "save_col": "OCV100(V)",
         "ylim": None,
@@ -226,8 +200,6 @@ ITEM_SPECS: List[ItemSpec] = [    {
     },
     {
         "source": "Unnamed: 38", # DCIR100_start
-        "start": 6,
-        "end": 1045,
         "title": "DCIR100_start",
         "save_col": "DCIR100_start(mΩ)",
         "ylim": None,
@@ -240,8 +212,6 @@ ITEM_SPECS: List[ItemSpec] = [    {
     },
     {
         "source": "Unnamed: 39", # DCIR100_1s
-        "start": 6,
-        "end": 1045,
         "title": "DCIR100_1s",
         "save_col": "DCIR100_1s(mΩ)",
         "ylim": None,
@@ -254,8 +224,6 @@ ITEM_SPECS: List[ItemSpec] = [    {
     },
     {
         "source": "Unnamed: 40", # DCIR100_10s
-        "start": 6,
-        "end": 1045,
         "title": "DCIR100_10s",
         "save_col": "DCIR100_10s(mΩ)",
         "ylim": None,
@@ -268,8 +236,6 @@ ITEM_SPECS: List[ItemSpec] = [    {
     },
     {
         "source": "Unnamed: 42", # OCV90
-        "start": 6,
-        "end": 1045,
         "title": "OCV90",
         "save_col": "OCV90(V)",
         "ylim": None,
@@ -282,8 +248,6 @@ ITEM_SPECS: List[ItemSpec] = [    {
     },
     {
         "source": "Unnamed: 43", # DCIR90_start
-        "start": 6,
-        "end": 1045,
         "title": "DCIR90_start",
         "save_col": "DCIR90_start(mΩ)",
         "ylim": None,
@@ -296,8 +260,6 @@ ITEM_SPECS: List[ItemSpec] = [    {
     },
     {
         "source": "Unnamed: 44", # DCIR90_1s
-        "start": 6,
-        "end": 1045,
         "title": "DCIR90_1s",
         "save_col": "DCIR90_1s(mΩ)",
         "ylim": None,
@@ -310,8 +272,6 @@ ITEM_SPECS: List[ItemSpec] = [    {
     },
     {
         "source": "Unnamed: 45", # DCIR90_10s
-        "start": 6,
-        "end": 1045,
         "title": "DCIR90_10s",
         "save_col": "DCIR90_10s(mΩ)",
         "ylim": None,
@@ -324,8 +284,6 @@ ITEM_SPECS: List[ItemSpec] = [    {
     },
     {
         "source": "Unnamed: 47", # OCV50
-        "start": 6,
-        "end": 1045,
         "title": "OCV50",
         "save_col": "OCV50(V)",
         "ylim": None,
@@ -338,8 +296,6 @@ ITEM_SPECS: List[ItemSpec] = [    {
     },
     {
         "source": "Unnamed: 48", # DCIR50_start
-        "start": 6,
-        "end": 1045,
         "title": "DCIR50_start",
         "save_col": "DCIR50_start(mΩ)",
         "ylim": None,
@@ -352,8 +308,6 @@ ITEM_SPECS: List[ItemSpec] = [    {
     },
     {
         "source": "Unnamed: 49", # DCIR50_1s
-        "start": 6,
-        "end": 1045,
         "title": "DCIR50_1s",
         "save_col": "DCIR50_1s(mΩ)",
         "ylim": None,
@@ -366,8 +320,6 @@ ITEM_SPECS: List[ItemSpec] = [    {
     },
     {
         "source": "Unnamed: 50", # DCIR50_10s
-        "start": 6,
-        "end": 1045,
         "title": "DCIR50_10s",
         "save_col": "DCIR50_10s(mΩ)",
         "ylim": None,
@@ -381,8 +333,6 @@ ITEM_SPECS: List[ItemSpec] = [    {
     },
     {
         "source": "Unnamed: 52", # OCV10
-        "start": 6,
-        "end": 1045,
         "title": "OCV10",
         "save_col": "OCV10(V)",
         "ylim": None,
@@ -395,8 +345,6 @@ ITEM_SPECS: List[ItemSpec] = [    {
     },
     {
         "source": "Unnamed: 53", # DCIR10_start
-        "start": 6,
-        "end": 1045,
         "title": "DCIR10_start",
         "save_col": "DCIR10_start(mΩ)",
         "ylim": None,
@@ -409,8 +357,6 @@ ITEM_SPECS: List[ItemSpec] = [    {
     },
     {
         "source": "Unnamed: 54", # DCIR10_1s
-        "start": 6,
-        "end": 1045,
         "title": "DCIR10_1s",
         "save_col": "DCIR10_1s(mΩ)",
         "ylim": None,
@@ -423,8 +369,6 @@ ITEM_SPECS: List[ItemSpec] = [    {
     },
     {
         "source": "Unnamed: 55", # DCIR10_10s
-        "start": 6,
-        "end": 1045,
         "title": "DCIR10_10s",
         "save_col": "DCIR10_10s(mΩ)",
         "ylim": None,
@@ -438,8 +382,6 @@ ITEM_SPECS: List[ItemSpec] = [    {
     },
     {
         "source": "Unnamed: 57", # OCV0
-        "start": 6,
-        "end": 1045,
         "title": "OCV0",
         "save_col": "OCV0(V)",
         "ylim": None,
@@ -452,8 +394,6 @@ ITEM_SPECS: List[ItemSpec] = [    {
     },
     {
         "source": "Unnamed: 58", # DCIR0_start
-        "start": 6,
-        "end": 1045,
         "title": "DCIR0_start",
         "save_col": "DCIR0_start(mΩ)",
         "ylim": None,
@@ -466,8 +406,6 @@ ITEM_SPECS: List[ItemSpec] = [    {
     },
     {
         "source": "Unnamed: 59", # DCIR0_1s
-        "start": 6,
-        "end": 1045,
         "title": "DCIR0_1s",
         "save_col": "DCIR0_1s(mΩ)",
         "ylim": None,
@@ -481,8 +419,6 @@ ITEM_SPECS: List[ItemSpec] = [    {
     },
     {
         "source": "Unnamed: 60", # DCIR0_10s
-        "start": 6,
-        "end": 1045,
         "title": "DCIR0_10s",
         "save_col": "DCIR0_10s(mΩ)",
         "ylim": None,
@@ -495,8 +431,6 @@ ITEM_SPECS: List[ItemSpec] = [    {
     },
     {
         "source": "Unnamed: 61",
-        "start": 6,
-        "end": 1045,
         "title": "Used",
         "save_col": "Used",
         "ylim": None,
@@ -516,8 +450,8 @@ def build_step0_items() -> List[Tuple[object, int, int, str, str, Optional[tuple
         items.append(
             (
                 spec["source"],
-                int(spec["start"]),
-                int(spec["end"]),
+                DATA_START_ROW,
+                DATA_END_ROW,
                 str(spec["title"]),
                 str(spec["save_col"]),
                 spec.get("ylim"),

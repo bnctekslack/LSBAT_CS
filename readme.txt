@@ -5,6 +5,7 @@ LotScreening은 Lot 단위의 품질 판정, Step0은 셀 단위 이상치 제�
 ### 분석 항목 설정 (중앙 설정)
 모든 분석 항목은 `analysis_config.py`의 `ITEM_SPECS`에서 관리합니다.
 여기서 항목을 추가/삭제하거나 사용 여부를 조정하면 Step0/Step1/LotScreening/Step2에 모두 반영됩니다.
+원본 엑셀 데이터 행 범위는 `analysis_config.py`의 `DATA_START_ROW`, `DATA_END_ROW`에서 한 번만 설정합니다.
 
 `ITEM_SPECS` 주요 필드:
 1. `source`: 원본 엑셀 컬럼명 (예: `Unnamed: 35`)

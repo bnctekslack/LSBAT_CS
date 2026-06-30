@@ -1,3 +1,7 @@
+2026.06.30(v1.2)
+  * analysis_config.py의 DATA_START_ROW, DATA_END_ROW에서 분석 행 범위를 한 번만 설정하도록 변경
+  * ITEM_SPECS에 남아 있는 항목별 start/end 값이 Step0/LotScreening 분석 범위에 영향을 주지 않도록 수정
+
 2026.06.10(v1.1)
   * StepM 결과의 Band/Group 의미 정리
   * Group 번호를 Band와 동일하게 복사하지 않고 각 Band 내 P1~P9 번호로 부여하도록 수정
