@@ -9,6 +9,7 @@
 [LotScreen] Writing Excel output...
 [LotScreen] Result File: Results\LotScreening.xlsx
 [LotScreen] Metrics Checked: 3 | Failed Metrics: 0
+
 [Step0] 결과 저장 폴더 생성 완료: Results
 [Step0] [Weight] 이상치 477개 / 전체 1300개 (36.69%) | 기준: [70.000 ~ 71.200]
 [Step0] [Height] 이상치 4개 / 전체 1300개 (0.31%) | 기준: [70.285 ~ 70.465]
